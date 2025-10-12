@@ -1,75 +1,65 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\WaterIntakeController;
-use App\Http\Controllers\HealthMetricController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ChallengeController;
+use App\Http\Controllers\UserChallengeController;
+use App\Http\Controllers\Admin\ChallengeController as AdminChallengeController;
+use App\Http\Controllers\Admin\UserChallengeController as AdminUserChallengeController;
 
+// === PAGE D’ACCUEIL ===
 Route::get('/', function () {
     return view('welcome');
 });
 
+// === DASHBOARD UTILISATEUR (après login) ===
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
-// Auth perso
-// Auth perso
-Route::get('register', [AuthController::class, 'showRegister'])->name('register.form');
-Route::post('register', [AuthController::class, 'register'])->name('register');
+// === PARTIE CLIENT ===
+Route::middleware('auth')->group(function () {
 
-Route::get('login', [AuthController::class, 'showLogin'])->name('login.form');
-Route::post('login', [AuthController::class, 'login'])->name('login');
+    // Profil utilisateur
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-Route::post('logout', [AuthController::class, 'logout'])->name('logout');
-    Route::resource('health-metrics', HealthMetricController::class);
+    // Gestion des challenges
+    Route::resource('challenges', ChallengeController::class);
 
-
-// Page protégée
-Route::middleware(['auth'])->group(function () {
-    // MET LA ROUTE DASHBOARD AVANT LA RESSOURCE
-    Route::get('/dashboard-sante', [HealthMetricController::class, 'dashboard'])->name('health.dashboard');
-    
-    // Ensuite la resource
-        Route::resource('health-metrics', HealthMetricController::class);
-
-    Route::resource('waterintakes', WaterIntakeController::class);
-    // routes/web.php - REMPLACE ta route store par ceci :
-
-// routes/web.php - AJOUTE EN HAUT
-
-// PUIS la route
-// routes/web.php - AJOUTE
-Route::post('/health-metrics-fix', function(Request $request) {
-    $metric = App\Models\HealthMetric::create([
-        'user_id' => Auth::id(),
-        'weight_kg' => $request->weight_kg,
-        'measurement' => $request->measurement,
-        'measured_at' => $request->measured_at,
-    ]);
-    
-    return redirect()->route('health.dashboard')
-        ->with('success', 'Métrique créée avec ID: ' . $metric->id);
-});
-// routes/web.php - AJOUTE CETTE ROUTE
-Route::get('/check-routes', function() {
-    echo "<h3>Vérification des routes Health Metrics:</h3>";
-    
-    $routes = [
-        'health-metrics.store' => route('health-metrics.store'),
-        'health-metrics.index' => route('health-metrics.index'),
-        'health-metrics.create' => route('health-metrics.create'),
-    ];
-    
-    foreach ($routes as $name => $url) {
-        echo "{$name}: {$url}<br>";
-    }
-    
-    echo "<hr><h4>Toutes les routes health-metrics:</h4>";
-    $allRoutes = Route::getRoutes();
-    foreach ($allRoutes as $route) {
-        if (str_contains($route->uri(), 'health-metrics')) {
-            echo $route->methods()[0] . " - " . $route->uri() . " - " . ($route->getName() ?? 'no name') . "<br>";
-        }
-    }
-});
+    // Participation aux challenges (my/challenges/…)
+    Route::prefix('my')->name('user.challenges.')->group(function () {
+        Route::get('/challenges', [UserChallengeController::class, 'index'])->name('index');
+        Route::post('/challenges/{challenge}/join', [UserChallengeController::class, 'join'])->name('join');
+        Route::get('/challenges/{userChallenge}', [UserChallengeController::class, 'show'])->name('show');
+        Route::put('/challenges/{userChallenge}/progress', [UserChallengeController::class, 'updateProgress'])->name('update-progress');
+        Route::post('/challenges/{userChallenge}/complete', [UserChallengeController::class, 'complete'])->name('complete');
+    });
 });
 
+// === PARTIE ADMIN ===
+// Assure-toi d’avoir créé le middleware 'admin' pour vérifier le rôle
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware(['auth'])
+    ->group(function () {
+
+        // Dashboard admin
+        Route::get('/', function () {
+            return view('admin.dashboard'); // Crée resources/views/admin/dashboard.blade.php
+        })->name('dashboard');
+
+        // Gestion des challenges
+        Route::resource('challenges', AdminChallengeController::class);
+
+        // Gestion des participations
+        Route::get('/user-challenges', [AdminUserChallengeController::class, 'index'])->name('user-challenges.index');
+        Route::get('/user-challenges/{userChallenge}', [AdminUserChallengeController::class, 'show'])->name('user-challenges.show');
+        Route::delete('/user-challenges/{userChallenge}', [AdminUserChallengeController::class, 'destroy'])->name('user-challenges.destroy');
+        Route::get('/user-challenges/{userChallenge}/edit', [AdminUserChallengeController::class, 'edit'])->name('user-challenges.edit');
+Route::put('/user-challenges/{userChallenge}', [AdminUserChallengeController::class, 'update'])->name('user-challenges.update');
+
+    });
+
+require __DIR__ . '/auth.php';

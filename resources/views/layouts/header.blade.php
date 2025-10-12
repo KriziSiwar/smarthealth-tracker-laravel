@@ -2,73 +2,106 @@
 <header id="header" class="header d-flex align-items-center fixed-top">
     <div class="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
 
-      {{-- LOGO --}}
-      <a href="{{ route('health.dashboard') }}" class="logo d-flex align-items-center me-auto me-xl-0">
-        <svg class="my-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {{-- LOGO CHALLENGE SANTÉ --}}
+      <a href="{{ url('/') }}" class="logo d-flex align-items-center me-auto me-xl-0">
+        <svg class="my-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: #2c7873;">
           <g id="bgCarrier" stroke-width="0"></g>
           <g id="tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
           <g id="iconCarrier">
-            <path d="M22 22L2 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path d="M17 22V6C17 4.11438 17 3.17157 16.4142 2.58579C15.8284 2 14.8856 2 13 2H11C9.11438 2 8.17157 2 7.58579 2.58579C7 3.17157 7 4.11438 7 6V22" stroke="currentColor" stroke-width="1.5"></path>
-            <path opacity="0.5" d="M21 22V8.5C21 7.09554 21 6.39331 20.6629 5.88886C20.517 5.67048 20.3295 5.48298 20.1111 5.33706C19.6067 5 18.9045 5 17.5 5" stroke="currentColor" stroke-width="1.5"></path>
-            <path opacity="0.5" d="M3 22V8.5C3 7.09554 3 6.39331 3.33706 5.88886C3.48298 5.67048 3.67048 5.48298 3.88886 5.33706C4.39331 5 5.09554 5 6.5 5" stroke="currentColor" stroke-width="1.5"></path>
-            <path d="M12 22V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M10 12H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M5.5 11H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M5.5 14H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M17 11H18.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M17 14H18.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M5.5 8H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M17 8H18.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path opacity="0.5" d="M10 15H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path d="M12 9V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            <path d="M14 7L10 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            {{-- Icône modifiée pour représenter les challenges --}}
+            <path d="M12 2L14 7L19 7L15 10L16 15L12 12L8 15L9 10L5 7L10 7Z" stroke="currentColor" stroke-width="1.5" fill="currentColor"/>
+            <path d="M12 22V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path opacity="0.5" d="M8 12H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path opacity="0.5" d="M10 15H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </g>
         </svg>
-        <h1 class="sitename">MediTrust</h1>
+        <h1 class="sitename">ChallengeSanté</h1>
       </a>
 
-      {{-- NAVIGATION --}}
+      {{-- NAVIGATION CHALLENGES --}}
       <nav id="navmenu" class="navmenu">
         <ul>
-          <li><a href="{{ route('health.dashboard') }}" class="active">Tableau de Bord</a></li>
+          <li><a href="{{ url('/') }}" class="{{ request()->is('/') ? 'active' : '' }}">Accueil</a></li>
           
+          {{-- MENU CHALLENGES --}}
           <li class="dropdown">
-            <a href="#"><span>Métriques Santé</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+            <a href="#"><span>Challenges</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
             <ul>
-              <li><a href="{{ route('health-metrics.index') }}">Mes Métriques</a></li>
-              <li><a href="{{ route('health-metrics.create') }}">Ajouter une Métrique</a></li>
+              <li><a href="{{ route('challenges.index') }}">Tous les Challenges</a></li>
+              @auth
+              <li><a href="{{ route('challenges.create') }}">Créer un Challenge</a></li>
+              @endauth
             </ul>
           </li>
-          
-          <li><a href="{{ route('waterintakes.index') }}">Hydratation</a></li>
-          
+
+          {{-- CATÉGORIES --}}
+          <li class="dropdown">
+            <a href="#"><span>Catégories</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+            <ul>
+              <li><a href="{{ route('challenges.index', ['category' => 'sport']) }}">🏃 Sport & Fitness</a></li>
+              <li><a href="{{ route('challenges.index', ['category' => 'nutrition']) }}">🥗 Nutrition</a></li>
+              <li><a href="{{ route('challenges.index', ['category' => 'mental']) }}">🧠 Bien-être Mental</a></li>
+              <li><a href="{{ route('challenges.index', ['category' => 'ecologie']) }}">🌱 Écologie</a></li>
+              <li><a href="{{ route('challenges.index', ['category' => 'apprentissage']) }}">📚 Apprentissage</a></li>
+            </ul>
+          </li>
+
+          {{-- STATISTIQUES --}}
+          @auth
+          <li class="dropdown">
+            <a href="#"><span>Mes Progrès</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+            <ul>
+              <li><a href="{{ route('user.challenges.index') }}">📊 Tableau de Bord</a></li>
+              <li><a href="{{ route('user.challenges.index', ['status' => 'completed']) }}">✅ Challenges Complétés</a></li>
+              <li><a href="{{ route('user.challenges.index', ['status' => 'in_progress']) }}">🔄 En Cours</a></li>
+            </ul>
+          </li>
+          @endauth
+
           {{-- MENU UTILISATEUR --}}
           @auth
           <li class="dropdown">
-            <a href="#"><span>{{ Auth::user()->name }}</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+            <a href="#">
+              <span>
+                <i class="bi bi-person-circle me-1"></i>
+                {{ Auth::user()->name }}
+              </span> 
+              <i class="bi bi-chevron-down toggle-dropdown"></i>
+            </a>
             <ul>
-              <li><a href="{{ route('health.dashboard') }}">Mon Profil</a></li>
+              <li><a href="{{ route('profile.edit') }}">👤 Mon Profil</a></li>
+              <li><a href="{{ route('user.challenges.index') }}">📈 Mes Statistiques</a></li>
+              <li><hr class="dropdown-divider"></li>
               <li>
                 <form method="POST" action="{{ route('logout') }}" id="logout-form">
                   @csrf
-                  <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    Déconnexion
+                  <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" style="color: #dc3545;">
+                    🚪 Déconnexion
                   </a>
                 </form>
               </li>
             </ul>
           </li>
           @else
-          <li><a href="{{ route('login') }}">Connexion</a></li>
-          <li><a href="{{ route('register') }}">Inscription</a></li>
+          <li><a href="{{ route('login') }}">🔐 Connexion</a></li>
+          <li><a href="{{ route('register') }}">📝 Inscription</a></li>
           @endauth
         </ul>
         <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
       </nav>
 
-      {{-- BOUTON ACTION --}}
-      <a class="btn-getstarted" href="{{ route('health-metrics.create') }}">+ Nouvelle Mesure</a>
+      {{-- BOUTON ACTION PRINCIPAL --}}
+      @auth
+        <a class="btn-getstarted" href="{{ route('challenges.create') }}">
+          <i class="bi bi-plus-circle me-1"></i>
+          Nouveau Challenge
+        </a>
+      @else
+        <a class="btn-getstarted" href="{{ route('register') }}">
+          <i class="bi bi-rocket-takeoff me-1"></i>
+          Commencer
+        </a>
+      @endauth
 
     </div>
 </header>
