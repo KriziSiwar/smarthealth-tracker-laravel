@@ -12,21 +12,18 @@ class Activity extends Model
     protected $fillable = [
         'user_id',
         'activity_type_id',
-        'duration_minutes',
+        'duration',
+        'calories_burned',
+        'intensity',
         'activity_date',
+        'notes',
     ];
 
-    protected $casts = [
-        'activity_date' => 'date',
-    ];
-
-    public function user()
+    /**
+     * Relation : une activité appartient à un type d’activité
+     */
+    public function type()
     {
-        return $this->belongsTo(User::class);
-    }
-
-    public function activityType()
-    {
-        return $this->belongsTo(ActivityType::class);
+        return $this->belongsTo(ActivityType::class, 'activity_type_id');
     }
 }

@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* Header ChallengeSanté */
+.header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(44, 120, 115, 0.1);
+}
+
+.logo .my-icon {
+    width: 32px;
+    height: 32px;
+    color: #2c7873;
+}
+
+.sitename {
+    color: #2c7873;
+    font-weight: 700;
+    margin-left: 10px;
+    margin-bottom: 0;
+}
+
+.navmenu ul li a {
+    color: #495057;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.navmenu ul li a:hover,
+.navmenu ul li a.active {
+    color: #2c7873;
+}
+
+.navmenu .dropdown ul {
+    background: white;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border-radius: 10px;
+}
+
+.navmenu .dropdown ul li a {
+    padding: 8px 20px;
+}
+
+.btn-getstarted {
+    background: linear-gradient(135deg, #2c7873, #34c6b3);
+    color: white;
+    padding: 10px 25px;
+    border-radius: 25px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-getstarted:hover {
+    background: linear-gradient(135deg, #245e59, #2aa897);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(44, 120, 115, 0.3);
+}
+
+/* Badges pour les statistiques */
+.user-stats {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.stat-badge {
+    background: #f8f9fa;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    border: 1px solid #e9ecef;
+}
+
+/* Responsive */
+@media (max-width: 1199px) {
+    .navmenu ul {
+        background: white;
+    }
+}

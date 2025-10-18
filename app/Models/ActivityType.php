@@ -9,10 +9,13 @@ class ActivityType extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'calories_per_minute'];
+    protected $fillable = ['name'];
 
+    /**
+     * Relation : un type d’activité peut avoir plusieurs activités
+     */
     public function activities()
     {
-        return $this->hasMany(Activity::class);
+        return $this->hasMany(Activity::class, 'activity_type_id');
     }
 }
