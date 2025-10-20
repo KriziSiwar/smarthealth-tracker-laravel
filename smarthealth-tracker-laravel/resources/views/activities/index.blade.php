@@ -5,9 +5,16 @@
     <h3 class="mb-4 text-success"><i class="bi bi-clipboard-data"></i> Liste des activités</h3>
 
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
-        <a href="{{ route('activities.create') }}" class="btn btn-success mb-2 mb-md-0">
-            <i class="bi bi-plus-circle"></i> Ajouter une activité
-        </a>
+        <div class="d-flex flex-wrap gap-2 mb-2 mb-md-0">
+            <a href="{{ route('activities.create') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Ajouter une activité
+            </a>
+
+            {{-- ✅ Nouveau bouton Statistique --}}
+            <a href="{{ route('activities.stats') }}" class="btn btn-outline-success">
+                <i class="bi bi-graph-up"></i> Statistique
+            </a>
+        </div>
 
         {{-- Barre de recherche --}}
         <form method="GET" action="{{ route('activities.index') }}" class="d-flex">
