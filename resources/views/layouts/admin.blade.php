@@ -65,6 +65,26 @@
                                 <a class="nav-link" href="{{ route('admin.user-challenges.index') }}">Participations</a>
                             </nav>
                         </div>
+
+                        <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseNutrition"
+                           aria-expanded="false" aria-controls="collapseNutrition">
+                            <div class="sb-nav-link-icon"><i class="fas fa-utensils"></i></div>
+                            Nutrition
+                            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                        </a>
+                        <div class="collapse" id="collapseNutrition" data-bs-parent="#sidenavAccordion">
+                            <nav class="sb-sidenav-menu-nested nav">
+                                <a class="nav-link" href="{{ route('admin.nutrition.foods.index') }}">
+                                    <i class="fas fa-utensils me-2"></i>Gestion des aliments
+                                </a>
+                                <a class="nav-link" href="{{ route('admin.nutrition.meal-plans.index') }}">
+                                    <i class="fas fa-clipboard-list me-2"></i>Plans de repas
+                                </a>
+                                <a class="nav-link" href="{{ route('admin.nutrition.tracking.index') }}">
+                                    <i class="fas fa-chart-line me-2"></i>Suivi nutritionnel
+                                </a>
+                            </nav>
+                        </div>
                     </div>
                 </div>
                 <div class="sb-sidenav-footer">

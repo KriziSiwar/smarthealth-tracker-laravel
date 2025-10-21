@@ -46,6 +46,17 @@
             </ul>
           </li>
 
+          {{-- NUTRITION --}}
+          <li class="dropdown">
+            <a href="#"><span>🍎 Nutrition</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+            <ul>
+              <li><a href="{{ route('nutrition.dashboard') }}">Tableau de bord</a></li>
+              <li><a href="{{ route('nutrition.food.log') }}">Journal alimentaire</a></li>
+              <li><a href="{{ route('nutrition.meal-plans.index') }}">Plans de repas</a></li>
+              <li><a href="{{ route('nutrition.water-intake') }}">Suivi d'hydratation</a></li>
+            </ul>
+          </li>
+
           {{-- STATISTIQUES --}}
           @auth
           <li class="dropdown">
@@ -105,3 +116,17 @@
 
     </div>
 </header>
+
+
+
+<style>
+    /* Décale le contenu pour ne pas être caché par le navbar */
+    body {
+        padding-top: 70px; /* adapte selon la hauteur exacte du navbar */
+    }
+
+    /* Optionnel : si ton main a déjà du padding, ajuste légèrement */
+    main#main {
+        min-height: calc(100vh - 70px);
+    }
+</style>
