@@ -29,16 +29,18 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
                 dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    sh 'ls -la'
                     sh 'npm install'
                     sh 'npm run build'
                 }
             }
         }
+
 
 
 
