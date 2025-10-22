@@ -1,90 +1,65 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'Node20'
-    }
-
     environment {
-        VENV_DIR = "venv"
-        PATH = "/usr/bin:/usr/local/bin:$PATH"
+        # Configuration de la DB pour les tests Laravel
+        DB_CONNECTION = 'mysql'
+        DB_HOST = '127.0.0.1'
+        DB_PORT = '3306'
+        DB_DATABASE = 'smarthealth-tracker'
+        DB_USERNAME = 'root'          // Remplace par ton utilisateur MySQL
+        DB_PASSWORD = ''       // Remplace par ton mot de passe MySQL
+        APP_ENV = 'testing'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
-                echo 'Cloning repository...'
-                git branch: 'integrationnn',
-                    url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
-                    credentialsId: 'GithubToken-laravel'
+                echo 'Récupération du code...'
+                checkout scm
             }
         }
 
-        stage('Setup Laravel') {
+        stage('Install Composer') {
             steps {
-                echo 'Installing PHP dependencies via Composer...'
-                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
-                    sh 'composer install --no-interaction --prefer-dist'
-                }
+                echo 'Installation des dépendances PHP...'
+                sh 'composer install --no-interaction --prefer-dist'
             }
         }
 
-        stage('Build Frontend') {
+        stage('Install Node') {
             steps {
-                echo 'Installing Node dependencies and building frontend...'
-                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
-                    sh 'npm install'
-                    sh 'npm run build'
-                }
+                echo 'Installation des dépendances front-end...'
+                sh 'npm install'
+                sh 'npm run build'
             }
         }
 
-        stage('Laravel Tests') {
+        stage('Prepare Database') {
             steps {
-                echo 'Running Laravel tests...'
-                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
-                    sh 'php artisan test'
-                }
+                echo 'Création et migration de la base de tests...'
+                sh 'mysql -u $DB_USERNAME -p$DB_PASSWORD -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;"'
+                sh 'php artisan migrate --env=testing --force'
             }
         }
 
-        stage('Setup Flask AI') {
+        stage('Run Tests') {
             steps {
-                echo 'Setting up Python virtual environment for Flask AI...'
-                sh """
-                   python3 -m venv ${VENV_DIR}
-                   source ${VENV_DIR}/bin/activate
-                   pip install --upgrade pip
-                   pip install -r flask_app/requirements.txt
-                """
-            }
-        }
-
-        stage('Run Flask Tests') {
-            steps {
-                echo 'Running Flask AI tests...'
-                sh """
-                   source ${VENV_DIR}/bin/activate
-                   pytest flask_app/tests
-                """
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo 'Deploying project...'
-                sh 'echo "Deployment placeholder"'
+                echo 'Exécution des tests Laravel...'
+                sh 'php artisan test --env=testing'
             }
         }
     }
 
     post {
+        always {
+            echo 'Nettoyage post-build...'
+        }
         success {
-            echo 'Pipeline finished successfully!'
+            echo 'Build et tests réussis !'
         }
         failure {
-            echo 'Pipeline failed!'
+            echo 'Build ou tests échoués.'
         }
     }
 }
