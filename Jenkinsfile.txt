@@ -6,10 +6,10 @@ pipeline {
     }
 
     environment {
-        VENV_DIR = "venv"
-        LARAVEL_DIR = "smarthealth-tracker-laravel"
-        FLASK_DIR = "appflask"
-        DB_PATH = "database/database.sqlite"
+        VENV_DIR = 'venv'
+        LARAVEL_DIR = 'smarthealth-tracker-laravel'
+        FLASK_DIR = 'appflask'
+        DB_PATH = 'database/database.sqlite'
     }
 
     stages {
@@ -26,25 +26,22 @@ pipeline {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
-                    // Copy .env file
+                    // Copier .env et installer les dépendances
                     sh 'cp .env.example .env'
-                    
-                    // Install dependencies
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
-                    
-                    // Generate app key
                     sh 'php artisan key:generate'
                     
-                    // Update .env for testing
-                    sh """
-                        echo -e \"\\n# Testing Environment\" >> .env
-                        echo \"APP_ENV=testing\" >> .env
-                        echo \"DB_CONNECTION=sqlite\" >> .env
-                        echo \"DB_DATABASE=$(pwd)/${env.DB_PATH}\" >> .env
-                        echo \"CACHE_DRIVER=array\" >> .env
-                        echo \"SESSION_DRIVER=array\" >> .env
-                        echo \"QUEUE_DRIVER=sync\" >> .env
-                    """
+                    // Mise à jour du .env
+                    sh '''
+                        echo "" >> .env
+                        echo "# Testing Environment" >> .env
+                        echo "APP_ENV=testing" >> .env
+                        echo "DB_CONNECTION=sqlite" >> .env
+                        echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+                        echo "CACHE_DRIVER=array" >> .env
+                        echo "SESSION_DRIVER=array" >> .env
+                        echo "QUEUE_DRIVER=sync" >> .env
+                    '''
                 }
             }
         }
@@ -63,11 +60,9 @@ pipeline {
             steps {
                 echo '🧪 Running tests...'
                 dir(env.LARAVEL_DIR) {
-                    // Create database file
-                    sh "touch ${env.DB_PATH}"
-                    sh "chmod 666 ${env.DB_PATH}"
-                    
-                    // Run migrations and tests
+                    sh 'mkdir -p database'
+                    sh 'touch database/database.sqlite'
+                    sh 'chmod 666 database/database.sqlite'
                     sh 'php artisan migrate:fresh --force'
                     sh 'php artisan test'
                 }
@@ -79,7 +74,7 @@ pipeline {
         always {
             echo '🧹 Cleaning up...'
             dir(env.LARAVEL_DIR) {
-                sh "rm -f ${env.DB_PATH} || true"
+                sh 'rm -f database/database.sqlite || true'
             }
         }
         success {
