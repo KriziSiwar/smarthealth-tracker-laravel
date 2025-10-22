@@ -10,6 +10,8 @@ pipeline {
         LARAVEL_DIR = "smarthealth-tracker-laravel"
         FLASK_DIR = "appflask"
         PATH = "/usr/bin:/usr/local/bin:$PATH"
+        // Fix: Use absolute path for SQLite
+        DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite"
     }
 
     stages {
@@ -26,14 +28,13 @@ pipeline {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
-                    // Install PHP dependencies
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
-                    
-                    // Copy environment file if not exists
                     sh 'test -f .env || cp .env.example .env'
-                    
-                    // Generate application key if not set
                     sh 'grep -q "^APP_KEY=" .env || php artisan key:generate'
+                    // Set up testing environment
+                    sh "echo '\nTEST_DB_CONNECTION=sqlite' >> .env"
+                    sh "echo 'DB_DATABASE=${DB_DATABASE}' >> .env"
+                    sh "echo 'DB_CONNECTION=sqlite' >> .env"
                 }
             }
         }
@@ -43,23 +44,22 @@ pipeline {
                 echo '🛠️ Building frontend assets...'
                 dir(env.LARAVEL_DIR) {
                     sh 'npm install'
-                    sh 'npm run build'  // Changed from 'npx vite build' to use the proper npm script
+                    sh 'npm run build'
                 }
             }
         }
 
         stage('Run Laravel Tests') {
-            environment {
-                DB_CONNECTION = 'sqlite'
-                DB_DATABASE = '${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite'
-            }
             steps {
                 echo '🧪 Running Laravel tests...'
                 dir(env.LARAVEL_DIR) {
-                    // Create SQLite database for testing
-                    sh 'touch database/database.sqlite'
+                    // Create and prepare test database
+                    sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
+                    sh "touch ${DB_DATABASE}"
+                    sh 'php artisan config:clear'
+                    sh 'php artisan cache:clear'
                     sh 'php artisan migrate:fresh --env=testing --force'
-                    sh 'php artisan test --env=testing'
+                    sh 'php artisan test'
                 }
             }
         }
@@ -68,12 +68,9 @@ pipeline {
             steps {
                 echo '🐍 Setting up Python virtual environment for Flask AI...'
                 dir(env.FLASK_DIR) {
-                    sh """
-                        python3 -m venv ${env.VENV_DIR}
-                        . ${env.VENV_DIR}/bin/activate
-                        pip install --upgrade pip
-                        pip install -r requirements.txt
-                    """
+                    sh "python3 -m venv ${env.VENV_DIR}"
+                    sh ". ${env.VENV_DIR}/bin/activate && pip install --upgrade pip"
+                    sh ". ${env.VENV_DIR}/bin/activate && pip install -r requirements.txt"
                 }
             }
         }
@@ -82,22 +79,8 @@ pipeline {
             steps {
                 echo '🧪 Running Flask AI tests...'
                 dir(env.FLASK_DIR) {
-                    sh """
-                        . ${env.VENV_DIR}/bin/activate
-                        python -m pytest tests -v
-                    """
+                    sh ". ${env.VENV_DIR}/bin/activate && python -m pytest tests -v"
                 }
-            }
-        }
-
-        stage('Deploy') {
-            when {
-                branch 'main'  // Only deploy from main branch
-            }
-            steps {
-                echo '🚀 Starting deployment...'
-                // Add your deployment steps here
-                // Example: sh 'rsync -avz . user@server:/path/to/deploy'
             }
         }
     }
@@ -105,15 +88,14 @@ pipeline {
     post {
         always {
             echo '🧹 Cleaning up workspace...'
-            cleanWs()
+            // Keep workspace for debugging, but clean up sensitive data
+            sh "rm -f ${DB_DATABASE} || true"
         }
         success {
             echo '✅ Pipeline completed successfully!'
-            // Add notification here (Slack, Email, etc.)
         }
         failure {
             echo '❌ Pipeline failed!'
-            // Add failure notification here
         }
     }
 }
