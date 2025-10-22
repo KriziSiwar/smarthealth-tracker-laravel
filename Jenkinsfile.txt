@@ -108,32 +108,49 @@ pipeline {
 
 
 stage('Setup Python Environment') {
-    steps {
-        echo '🐍 Setting up Python environment...'
-        dir(env.FLASK_DIR) {
-            // Création d'un environnement virtuel
-            sh 'python -m venv venv'
-            sh 'source venv/bin/activate && pip install --upgrade pip'
-            
-            // Installation des dépendances
-            sh 'source venv/bin/activate && pip install -r requirements.txt'
-            
-            // Installation des dépendances de développement
-            sh 'source venv/bin/activate && pip install pytest pytest-cov'
+        steps {
+            echo '🐍 Setting up Python environment...'
+            dir(env.FLASK_DIR) {
+                // Création d'un environnement virtuel
+                sh 'python -m venv venv'
+                sh 'source venv/bin/activate && pip install --upgrade pip'
+                
+                // Installation des dépendances
+                sh 'source venv/bin/activate && pip install -r requirements.txt'
+                
+                // Installation des dépendances de développement
+                sh 'source venv/bin/activate && pip install pytest pytest-cov'
+            }
+        }
+    }
+
+    stage('Run Python Tests') {
+        steps {
+            echo '🧪 Running Python tests...'
+            dir(env.FLASK_DIR) {
+                // Exécution des tests avec couverture
+                sh 'source venv/bin/activate && python -m pytest --cov=app --cov-report=xml:coverage.xml'
+                
+                // Stocker le rapport de couverture
+                junit '**/test-reports/*.xml'
+                cobertura '**/coverage.xml'
+            }
         }
     }
 }
 
-stage('Run Python Tests') {
-    steps {
-        echo '🧪 Running Python tests...'
-        dir(env.FLASK_DIR) {
-            // Exécution des tests avec couverture
-            sh 'source venv/bin/activate && python -m pytest --cov=app --cov-report=xml:coverage.xml'
-            
-            // Stocker le rapport de couverture
-            junit '**/test-reports/*.xml'
-            cobertura '**/coverage.xml'
+// Le bloc post existant continue ici
+post {
+    always {
+        echo '🧹 Cleaning up...'
+        dir(env.LARAVEL_DIR) {
+            sh 'rm -f database/database.sqlite || true'
         }
+    }
+    success {
+        echo '✅ Pipeline completed successfully!'
+    }
+    failure {
+        echo '❌ Pipeline failed!'
     }
 }
