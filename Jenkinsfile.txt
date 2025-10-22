@@ -31,6 +31,9 @@ pipeline {
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                     sh 'php artisan key:generate'
                     
+                    // Installer Breeze
+                    sh 'php artisan breeze:install'
+                    
                     // Mise à jour du .env
                     sh '''
                         echo "" >> .env
