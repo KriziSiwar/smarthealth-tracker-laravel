@@ -53,21 +53,22 @@ pipeline {
             steps {
                 echo '🧪 Running Laravel tests...'
                 dir(env.LARAVEL_DIR) {
-                    // Create and prepare test database
+                    // Create database directory and file
                     sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
                     sh "touch ${DB_DATABASE}"
                     
-                    // Set up environment specifically for testing
+                    // Set up testing environment
                     sh """
+                        # Set environment variables
                         export APP_ENV=testing
                         export DB_CONNECTION=sqlite
                         export DB_DATABASE=${DB_DATABASE}
                         
-                        # Disable cache for testing
+                        # Clear configuration and cache
                         php artisan config:clear
-                        php artisan config:set cache.default=array
+                        php artisan cache:clear
                         
-                        # Run migrations
+                        # Create a fresh SQLite database
                         php artisan migrate:fresh --force
                         
                         # Run tests
