@@ -10,8 +10,8 @@ pipeline {
         LARAVEL_DIR = "smarthealth-tracker-laravel"
         FLASK_DIR = "appflask"
         PATH = "/usr/bin:/usr/local/bin:$PATH"
-        DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite"
-        // Add other environment variables here
+        // Fix: Escape the $ in the path
+        DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite".replace('$', '\\$')
         APP_ENV = "testing"
         DB_CONNECTION = "sqlite"
         CACHE_DRIVER = "array"
@@ -33,26 +33,24 @@ pipeline {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
-                    // Ensure .env exists with proper permissions
                     sh '''
                         cp .env.example .env
                         chmod 644 .env
                         php artisan key:generate --force
                     '''
                     
-                    // Install PHP dependencies
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                     
-                    // Update .env for testing
-                    sh """
+                    // Using single quotes to avoid shell interpolation issues
+                    sh '''
                         echo -e "\n# Testing Environment" >> .env
                         echo "APP_ENV=testing" >> .env
                         echo "DB_CONNECTION=sqlite" >> .env
-                        echo "DB_DATABASE=${DB_DATABASE}" >> .env
+                        echo "DB_DATABASE=''' + env.DB_DATABASE + '''" >> .env
                         echo "CACHE_DRIVER=array" >> .env
                         echo "SESSION_DRIVER=array" >> .env
                         echo "QUEUE_DRIVER=sync" >> .env
-                    """
+                    '''
                 }
             }
         }
@@ -73,9 +71,9 @@ pipeline {
                 dir(env.LARAVEL_DIR) {
                     sh """
                         # Create database directory if not exists
-                        mkdir -p $(dirname ${DB_DATABASE})
-                        touch ${DB_DATABASE}
-                        chmod 666 ${DB_DATABASE}
+                        mkdir -p $(dirname ${env.DB_DATABASE})
+                        touch ${env.DB_DATABASE}
+                        chmod 666 ${env.DB_DATABASE}
                         
                         # Clear config and cache
                         php artisan config:clear
@@ -100,8 +98,8 @@ pipeline {
                 dir(env.FLASK_DIR) {
                     sh """
                         python3 -m venv ${env.VENV_DIR}
-                        . ${env.VENV_DIR}/bin/activate && \
-                        pip install --upgrade pip && \
+                        . ${env.VENV_DIR}/bin/activate && \\
+                        pip install --upgrade pip && \\
                         pip install -r requirements.txt
                     """
                 }
@@ -119,7 +117,7 @@ pipeline {
                 echo '🧪 Running Flask AI tests...'
                 dir(env.FLASK_DIR) {
                     sh """
-                        . ${env.VENV_DIR}/bin/activate && \
+                        . ${env.VENV_DIR}/bin/activate && \\
                         python -m pytest tests -v
                     """
                 }
@@ -130,11 +128,10 @@ pipeline {
     post {
         always {
             echo '🧹 Cleaning up workspace...'
-            // Clean up sensitive data
             script {
                 try {
-                    sh "rm -f ${DB_DATABASE} || true"
-                    sh "rm -f ${WORKSPACE}/${LARAVEL_DIR}/.env || true"
+                    sh "rm -f ${env.DB_DATABASE} || true"
+                    sh "rm -f ${env.WORKSPACE}/${env.LARAVEL_DIR}/.env || true"
                 } catch (Exception e) {
                     echo "⚠️ Cleanup warning: ${e.message}"
                 }
@@ -142,11 +139,9 @@ pipeline {
         }
         success {
             echo '✅ Pipeline completed successfully!'
-            // Add success notifications here
         }
         failure {
             echo '❌ Pipeline failed!'
-            // Add failure notifications here
         }
     }
 }
