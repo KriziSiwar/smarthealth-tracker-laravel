@@ -21,6 +21,14 @@ pipeline {
             }
         }
 
+        stage('Check Workspace') {
+            steps {
+                echo 'Listing files in workspace...'
+                sh 'pwd'
+                sh 'ls -R'
+            }
+        }
+
         stage('Check Files') {
             steps {
                 echo 'Listing all files in workspace'
