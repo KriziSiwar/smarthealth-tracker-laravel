@@ -7,8 +7,7 @@ pipeline {
 
     environment {
         VENV_DIR = "venv"
-        PATH = "/usr/bin:/usr/local/bin:$PATH" // Composer et PHP devraient être trouvés
-        COMPOSER_CMD = "/usr/bin/composer"   // Chemin absolu de composer
+        PATH = "/usr/bin:/usr/local/bin:$PATH" // Assure que Composer, PHP, npm sont trouvés
     }
 
     stages {
@@ -25,32 +24,40 @@ pipeline {
         stage('Setup Laravel') {
             steps {
                 echo 'Installing PHP dependencies via Composer...'
-                sh "${COMPOSER_CMD} install --no-interaction --prefer-dist"
+                sh """
+                   set -e
+                   composer install --no-interaction --prefer-dist
+                """
             }
         }
 
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
-                sh 'npm install'
-                sh 'npm run build'
+                sh """
+                   set -e
+                   npm install
+                   npm run build
+                """
             }
         }
 
         stage('Laravel Tests') {
             steps {
                 echo 'Running Laravel tests...'
-                sh 'php artisan test --verbose'
+                sh """
+                   set -e
+                   php artisan test --verbose
+                """
             }
         }
 
         stage('Setup Flask AI') {
             steps {
                 echo 'Setting up Python virtual environment for Flask AI...'
-                sh "python3 -m venv ${VENV_DIR}"
-                // Active le venv et installe les dépendances
                 sh """
                    set -e
+                   python3 -m venv ${VENV_DIR}
                    source ${VENV_DIR}/bin/activate
                    pip install --upgrade pip
                    pip install -r flask_app/requirements.txt
@@ -72,7 +79,6 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying project...'
-                // Mettre ici les vraies commandes de déploiement
                 sh 'echo "Deployment placeholder"'
             }
         }
