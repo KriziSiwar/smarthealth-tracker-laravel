@@ -30,6 +30,18 @@ pipeline {
             }
         }
 
+        stage('Laravel Migrations') {
+            steps {
+                echo 'Checking and running Laravel migrations...'
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    // Vérifie le statut des migrations
+                    sh 'php artisan migrate:status'
+                    // Exécute les migrations si besoin
+                    sh 'php artisan migrate --force'
+                }
+            }
+        }
+
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
