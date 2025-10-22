@@ -1,1 +1,67 @@
-SLM
+pipeline {
+    agent any
+
+    environment {
+        // Chemins et variables
+        PHP_HOME = "/usr/bin/php"
+        COMPOSER_HOME = "/usr/local/bin/composer"
+        VENV_DIR = "venv"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Cloning repository...'
+                git branch: 'integrationnn', url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
+                    credentialsId: 'GithubToken-laravel	'
+
+            }
+        }
+
+        stage('Setup Laravel') {
+            steps {
+                echo 'Installing PHP dependencies...'
+                sh 'composer install'
+            }
+        }
+
+        stage('Laravel Tests') {
+            steps {
+                echo 'Running Laravel tests...'
+                sh 'php artisan test'
+            }
+        }
+
+        stage('Setup Flask AI') {
+            steps {
+                echo 'Setting up Python environment for Flask AI...'
+                sh 'python3 -m venv venv'
+                sh '. venv/bin/activate && pip install -r flask_app/requirements.txt'
+            }
+        }
+
+        stage('Run Flask Tests') {
+            steps {
+                echo 'Testing Flask AI model...'
+                sh '. venv/bin/activate && pytest flask_app/tests'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying project...'
+                sh 'echo "Deployment placeholder"'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline finished successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
