@@ -57,15 +57,22 @@ pipeline {
             sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
             sh "touch ${DB_DATABASE}"
             
-            // Clear configuration and cache
-            sh 'php artisan config:clear'
-            sh 'php artisan cache:clear'
-            
-            // Force recreate the database
-            sh 'php artisan migrate:fresh --database=sqlite --env=testing --force'
-            
-            // Run tests
-            sh 'php artisan test'
+            // Set up environment specifically for testing
+            sh """
+                export APP_ENV=testing
+                export DB_CONNECTION=sqlite
+                export DB_DATABASE=${DB_DATABASE}
+                
+                # Disable cache for testing
+                php artisan config:clear
+                php artisan config:set cache.default=array
+                
+                # Run migrations
+                php artisan migrate:fresh --force
+                
+                # Run tests
+                php artisan test
+            """
         }
     }
 }
