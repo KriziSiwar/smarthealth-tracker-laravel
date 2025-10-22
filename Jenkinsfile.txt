@@ -49,7 +49,7 @@ pipeline {
             }
         }
 
-         stage('Run Laravel Tests') {
+       stage('Run Laravel Tests') {
             steps {
                 echo '🧪 Running Laravel tests...'
                 dir(env.LARAVEL_DIR) {
@@ -63,13 +63,16 @@ pipeline {
                         export APP_ENV=testing
                         export DB_CONNECTION=sqlite
                         export DB_DATABASE=${DB_DATABASE}
+                        export CACHE_DRIVER=array  # Use array driver for testing
                         
-                        # Clear configuration and cache
+                        # Clear configuration without touching the database
                         php artisan config:clear
-                        php artisan cache:clear
                         
                         # Create a fresh SQLite database
                         php artisan migrate:fresh --force
+                        
+                        # Now we can safely clear the cache
+                        php artisan cache:clear
                         
                         # Run tests
                         php artisan test
