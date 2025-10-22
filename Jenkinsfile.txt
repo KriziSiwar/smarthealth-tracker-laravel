@@ -23,40 +23,34 @@ pipeline {
         }
 
         stage('Setup Laravel') {
-                steps {
-                    echo '🔧 Setting up Laravel...'
-                    dir(env.LARAVEL_DIR) {
-                        // Copy .env and install dependencies
-                        sh 'cp .env.example .env'
-                        sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
-                        sh 'php artisan key:generate'
-                        
-                        // Install Breeze non-interactively
-                        sh 'php artisan breeze:install blade --pest --ssr --dark'
-                        
-                        // Update .env
-                        sh '''
-                            echo "" >> .env
-                            echo "# Testing Environment" >> .env
-                            echo "APP_ENV=testing" >> .env
-                            echo "DB_CONNECTION=sqlite" >> .env
-                            echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
-                            echo "CACHE_DRIVER=array" >> .env
-                            echo "SESSION_DRIVER=array" >> .env
-                            echo "QUEUE_DRIVER=sync" >> .env
-                        '''
-                    }
+            steps {
+                echo '🔧 Setting up Laravel...'
+                dir(env.LARAVEL_DIR) {
+                    sh 'cp .env.example .env'
+                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                    sh 'php artisan key:generate'
+                    sh 'php artisan breeze:install blade --pest --ssr --dark'
+                    
+                    sh '''
+                        echo "" >> .env
+                        echo "# Testing Environment" >> .env
+                        echo "APP_ENV=testing" >> .env
+                        echo "DB_CONNECTION=sqlite" >> .env
+                        echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+                        echo "CACHE_DRIVER=array" >> .env
+                        echo "SESSION_DRIVER=array" >> .env
+                        echo "QUEUE_DRIVER=sync" >> .env
+                    '''
                 }
             }
+        }
+
         stage('Setup Frontend') {
             steps {
                 echo '🔄 Setting up frontend...'
                 dir(env.LARAVEL_DIR) {
-                    // Installer Node.js et npm
                     sh 'node -v'
                     sh 'npm -v'
-                    
-                    // Nettoyer et installer les dépendances
                     sh 'rm -rf node_modules/'
                     sh 'rm -f package-lock.json'
                     sh 'npm cache clean --force'
@@ -69,7 +63,6 @@ pipeline {
             steps {
                 echo '🛠️ Building frontend assets...'
                 dir(env.LARAVEL_DIR) {
-                    // Désactiver les mises à jour automatiques
                     sh 'export VITE_DISABLE_OPEN_BROWSER=true'
                     sh 'npm run build'
                 }
@@ -88,6 +81,29 @@ pipeline {
                 }
             }
         }
+
+        stage('Setup Python Environment') {
+            steps {
+                echo '🐍 Setting up Python environment...'
+                dir(env.FLASK_DIR) {
+                    sh 'python -m venv venv'
+                    sh 'source venv/bin/activate && pip install --upgrade pip'
+                    sh 'source venv/bin/activate && pip install -r requirements.txt'
+                    sh 'source venv/bin/activate && pip install pytest pytest-cov'
+                }
+            }
+        }
+
+        stage('Run Python Tests') {
+            steps {
+                echo '🧪 Running Python tests...'
+                dir(env.FLASK_DIR) {
+                    sh 'source venv/bin/activate && python -m pytest --cov=app --cov-report=xml:coverage.xml'
+                    junit '**/test-reports/*.xml'
+                    cobertura '**/coverage.xml'
+                }
+            }
+        }
     }
 
     post {
@@ -103,54 +119,5 @@ pipeline {
         failure {
             echo '❌ Pipeline failed!'
         }
-    }
-}
-
-
-stage('Setup Python Environment') {
-        steps {
-            echo '🐍 Setting up Python environment...'
-            dir(env.FLASK_DIR) {
-                // Création d'un environnement virtuel
-                sh 'python -m venv venv'
-                sh 'source venv/bin/activate && pip install --upgrade pip'
-                
-                // Installation des dépendances
-                sh 'source venv/bin/activate && pip install -r requirements.txt'
-                
-                // Installation des dépendances de développement
-                sh 'source venv/bin/activate && pip install pytest pytest-cov'
-            }
-        }
-    }
-
-    stage('Run Python Tests') {
-        steps {
-            echo '🧪 Running Python tests...'
-            dir(env.FLASK_DIR) {
-                // Exécution des tests avec couverture
-                sh 'source venv/bin/activate && python -m pytest --cov=app --cov-report=xml:coverage.xml'
-                
-                // Stocker le rapport de couverture
-                junit '**/test-reports/*.xml'
-                cobertura '**/coverage.xml'
-            }
-        }
-    }
-}
-
-// Le bloc post existant continue ici
-post {
-    always {
-        echo '🧹 Cleaning up...'
-        dir(env.LARAVEL_DIR) {
-            sh 'rm -f database/database.sqlite || true'
-        }
-    }
-    success {
-        echo '✅ Pipeline completed successfully!'
-    }
-    failure {
-        echo '❌ Pipeline failed!'
     }
 }
