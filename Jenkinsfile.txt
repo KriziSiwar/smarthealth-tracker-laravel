@@ -24,6 +24,7 @@ pipeline {
         stage('Setup Laravel') {
             steps {
                 echo 'Installing PHP dependencies via Composer...'
+                dir('smarthealth-tracker-laravel/smarthealth-tracker-laravel')
                 sh 'composer install --no-interaction --prefer-dist'
             }
         }
