@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'Node20' // Nom de NodeJS configuré dans Jenkins
+        nodejs 'Node20'
     }
 
     environment {
         VENV_DIR = "venv"
-        PATH = "/usr/bin:/usr/local/bin:$PATH" // Assure que Composer, PHP, npm sont trouvés
-        PROJECT_DIR = "${WORKSPACE}/smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel"
+        PATH = "/usr/bin:/usr/local/bin:$PATH"
     }
 
     stages {
@@ -25,34 +24,28 @@ pipeline {
         stage('Setup Laravel') {
             steps {
                 echo 'Installing PHP dependencies via Composer...'
-                sh """
-                   set -e
-                   cd ${PROJECT_DIR}
-                   composer install --no-interaction --prefer-dist
-                """
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    sh 'composer install --no-interaction --prefer-dist'
+                }
             }
         }
 
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
-                sh """
-                   set -e
-                   cd ${PROJECT_DIR}
-                   npm install
-                   npm run build
-                """
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
             }
         }
 
         stage('Laravel Tests') {
             steps {
                 echo 'Running Laravel tests...'
-                sh """
-                   set -e
-                   cd ${PROJECT_DIR}
-                   php artisan test --verbose
-                """
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    sh 'php artisan test'
+                }
             }
         }
 
@@ -60,8 +53,6 @@ pipeline {
             steps {
                 echo 'Setting up Python virtual environment for Flask AI...'
                 sh """
-                   set -e
-                   cd ${PROJECT_DIR}
                    python3 -m venv ${VENV_DIR}
                    source ${VENV_DIR}/bin/activate
                    pip install --upgrade pip
@@ -74,8 +65,6 @@ pipeline {
             steps {
                 echo 'Running Flask AI tests...'
                 sh """
-                   set -e
-                   cd ${PROJECT_DIR}
                    source ${VENV_DIR}/bin/activate
                    pytest flask_app/tests
                 """
@@ -85,11 +74,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying project...'
-                sh """
-                   set -e
-                   cd ${PROJECT_DIR}
-                   echo "Deployment placeholder"
-                """
+                sh 'echo "Deployment placeholder"'
             }
         }
     }
