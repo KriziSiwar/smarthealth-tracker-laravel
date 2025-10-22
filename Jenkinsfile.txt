@@ -49,37 +49,42 @@ pipeline {
             }
         }
 
-       stage('Run Laravel Tests') {
-            steps {
-                echo '🧪 Running Laravel tests...'
-                dir(env.LARAVEL_DIR) {
-                    // Create database directory and file
-                    sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
-                    sh "touch ${DB_DATABASE}"
+      stage('Run Laravel Tests') {
+        steps {
+            echo '🧪 Running Laravel tests...'
+            dir(env.LARAVEL_DIR) {
+                // Create database directory and file
+                sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
+                sh "touch ${DB_DATABASE}"
+                
+                // Set up testing environment
+                sh """
+                    # Set environment variables
+                    export APP_ENV=testing
+                    export DB_CONNECTION=sqlite
+                    export DB_DATABASE=${DB_DATABASE}
+                    export CACHE_DRIVER=array
+                    export SESSION_DRIVER=array
+                    export QUEUE_DRIVER=sync
                     
-                    // Set up testing environment
-                    sh """
-                        # Set environment variables
-                        export APP_ENV=testing
-                        export DB_CONNECTION=sqlite
-                        export DB_DATABASE=${DB_DATABASE}
-                        export CACHE_DRIVER=array  # Use array driver for testing
-                        
-                        # Clear configuration without touching the database
-                        php artisan config:clear
-                        
-                        # Create a fresh SQLite database
-                        php artisan migrate:fresh --force
-                        
-                        # Now we can safely clear the cache
-                        php artisan cache:clear
-                        
-                        # Run tests
-                        php artisan test
-                    """
-                }
+                    # Generate application key if not exists
+                    if ! grep -q '^APP_KEY=' .env; then
+                        php artisan key:generate
+                    fi
+                    
+                    # Clear configuration and cache
+                    php artisan config:clear
+                    php artisan cache:clear
+                    
+                    # Create a fresh SQLite database
+                    php artisan migrate:fresh --force
+                    
+                    # Run tests
+                    php artisan test
+                """
             }
         }
+    }
 
         stage('Setup Flask AI') {
             steps {
