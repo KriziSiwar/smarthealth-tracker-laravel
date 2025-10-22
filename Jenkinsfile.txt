@@ -39,7 +39,6 @@ pipeline {
                 }
             }
         }
-    }
 
         stage('Laravel Tests') {
             steps {
@@ -53,22 +52,26 @@ pipeline {
         stage('Setup Flask AI') {
             steps {
                 echo 'Setting up Python virtual environment for Flask AI...'
-                sh """
-                   python3 -m venv ${VENV_DIR}
-                   source ${VENV_DIR}/bin/activate
-                   pip install --upgrade pip
-                   pip install -r flask_app/requirements.txt
-                """
+                dir('appflask') {
+                    sh """
+                       python3 -m venv ${VENV_DIR}
+                       source ${VENV_DIR}/bin/activate
+                       pip install --upgrade pip
+                       pip install -r requirements.txt
+                    """
+                }
             }
         }
 
         stage('Run Flask Tests') {
             steps {
                 echo 'Running Flask AI tests...'
-                sh """
-                   source ${VENV_DIR}/bin/activate
-                   pytest flask_app/tests
-                """
+                dir('appflask') {
+                    sh """
+                       source ${VENV_DIR}/bin/activate
+                       pytest tests
+                    """
+                }
             }
         }
 
@@ -78,7 +81,8 @@ pipeline {
                 sh 'echo "Deployment placeholder"'
             }
         }
-    }
+
+    } // fin de stages
 
     post {
         success {
