@@ -33,7 +33,7 @@ pipeline {
         stage('Laravel Migrations') {
             steps {
                 echo 'Checking and running Laravel migrations...'
-                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                dir('smarthealth-tracker-laravel') {
                     // Vérifie le statut des migrations
                     sh 'php artisan migrate:status'
                     // Exécute les migrations si besoin
