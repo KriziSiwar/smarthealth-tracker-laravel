@@ -24,6 +24,32 @@ pipeline {
             }
         }
 
+        pipeline {
+    agent any
+
+    tools {
+        nodejs 'Node20'
+    }
+
+    environment {
+        VENV_DIR = "venv"
+        LARAVEL_DIR = "smarthealth-tracker-laravel"
+        FLASK_DIR = "appflask"
+        PATH = "/usr/bin:/usr/local/bin:$PATH"
+        // Fix: Use absolute path for SQLite
+        DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '🚀 Cloning repository...'
+                git branch: 'siwar_new_integration',
+                    url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
+                    credentialsId: 'GithubToken-laravel'
+            }
+        }
+
         stage('Setup Laravel') {
             steps {
                 echo '🔧 Setting up Laravel...'
@@ -38,6 +64,89 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Frontend') {
+            steps {
+                echo '🛠️ Building frontend assets...'
+                dir(env.LARAVEL_DIR) {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
+        }
+
+      stage('Run Laravel Tests') {
+        steps {
+            echo '🧪 Running Laravel tests...'
+            dir(env.LARAVEL_DIR) {
+                // Create database directory and file
+                sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
+                sh "touch ${DB_DATABASE}"
+                
+                // Set up testing environment
+                sh """
+                    # Set environment variables
+                    export APP_ENV=testing
+                    export DB_CONNECTION=sqlite
+                    export DB_DATABASE=${DB_DATABASE}
+                    export CACHE_DRIVER=array
+                    export SESSION_DRIVER=array
+                    export QUEUE_DRIVER=sync
+                    
+                    # Generate application key if not exists
+                    if ! grep -q '^APP_KEY=' .env; then
+                        php artisan key:generate
+                    fi
+                    
+                    # Clear configuration and cache
+                    php artisan config:clear
+                    php artisan cache:clear
+                    
+                    # Create a fresh SQLite database
+                    php artisan migrate:fresh --force
+                    
+                    # Run tests
+                    php artisan test
+                """
+            }
+        }
+    }
+
+        stage('Setup Flask AI') {
+            steps {
+                echo '🐍 Setting up Python virtual environment for Flask AI...'
+                dir(env.FLASK_DIR) {
+                    sh "python3 -m venv ${env.VENV_DIR}"
+                    sh ". ${env.VENV_DIR}/bin/activate && pip install --upgrade pip"
+                    sh ". ${env.VENV_DIR}/bin/activate && pip install -r requirements.txt"
+                }
+            }
+        }
+
+        stage('Run Flask Tests') {
+            steps {
+                echo '🧪 Running Flask AI tests...'
+                dir(env.FLASK_DIR) {
+                    sh ". ${env.VENV_DIR}/bin/activate && python -m pytest tests -v"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo '🧹 Cleaning up workspace...'
+            // Keep workspace for debugging, but clean up sensitive data
+            sh "rm -f ${DB_DATABASE} || true"
+        }
+        success {
+            echo '✅ Pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed!'
+        }
+    }
+}
 
         stage('Build Frontend') {
             steps {
