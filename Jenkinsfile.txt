@@ -71,10 +71,12 @@ pipeline {
             steps {
                 echo 'Running Laravel tests...'
                 dir('smarthealth-tracker-laravel') {
+                    sh 'php artisan migrate --env=testing'
                     sh 'php artisan test'
                 }
             }
         }
+
 
         stage('Setup Flask AI') {
             steps {
