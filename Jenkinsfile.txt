@@ -46,12 +46,25 @@ pipeline {
             }
         }
 
+        stage('Install Frontend Dependencies') {
+            steps {
+                echo '📦 Installing frontend dependencies...'
+                dir(env.LARAVEL_DIR) {
+                    // Supprimer node_modules et package-lock.json s'ils existent
+                    sh 'rm -rf node_modules package-lock.json || true'
+                    // Installer les dépendances
+                    sh 'npm ci --no-audit --prefer-offline'
+                }
+            }
+        }
+
         stage('Build Frontend') {
             steps {
                 echo '🛠️ Building frontend assets...'
                 dir(env.LARAVEL_DIR) {
-                    sh 'npm install --no-audit --no-optional'
-                    sh 'npm run build'
+                    // Désactiver les mises à jour automatiques
+                    sh 'export VITE_DISABLE_OPEN_BROWSER=true'
+                    sh 'npm run build -- --mode=production'
                 }
             }
         }
