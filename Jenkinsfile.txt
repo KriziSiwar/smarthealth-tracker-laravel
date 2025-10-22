@@ -50,32 +50,32 @@ pipeline {
         }
 
          stage('Run Laravel Tests') {
-    steps {
-        echo '🧪 Running Laravel tests...'
-        dir(env.LARAVEL_DIR) {
-            // Create and prepare test database
-            sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
-            sh "touch ${DB_DATABASE}"
-            
-            // Set up environment specifically for testing
-            sh """
-                export APP_ENV=testing
-                export DB_CONNECTION=sqlite
-                export DB_DATABASE=${DB_DATABASE}
-                
-                # Disable cache for testing
-                php artisan config:clear
-                php artisan config:set cache.default=array
-                
-                # Run migrations
-                php artisan migrate:fresh --force
-                
-                # Run tests
-                php artisan test
-            """
+            steps {
+                echo '🧪 Running Laravel tests...'
+                dir(env.LARAVEL_DIR) {
+                    // Create and prepare test database
+                    sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
+                    sh "touch ${DB_DATABASE}"
+                    
+                    // Set up environment specifically for testing
+                    sh """
+                        export APP_ENV=testing
+                        export DB_CONNECTION=sqlite
+                        export DB_DATABASE=${DB_DATABASE}
+                        
+                        # Disable cache for testing
+                        php artisan config:clear
+                        php artisan config:set cache.default=array
+                        
+                        # Run migrations
+                        php artisan migrate:fresh --force
+                        
+                        # Run tests
+                        php artisan test
+                    """
+                }
+            }
         }
-    }
-}
 
         stage('Setup Flask AI') {
             steps {
