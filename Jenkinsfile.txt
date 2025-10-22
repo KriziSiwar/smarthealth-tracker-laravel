@@ -10,34 +10,13 @@ pipeline {
         LARAVEL_DIR = "smarthealth-tracker-laravel"
         FLASK_DIR = "appflask"
         PATH = "/usr/bin:/usr/local/bin:$PATH"
-        // Fix: Use absolute path for SQLite
         DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite"
-    }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                echo '🚀 Cloning repository...'
-                git branch: 'siwar_new_integration',
-                    url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
-                    credentialsId: 'GithubToken-laravel'
-            }
-        }
-
-        pipeline {
-    agent any
-
-    tools {
-        nodejs 'Node20'
-    }
-
-    environment {
-        VENV_DIR = "venv"
-        LARAVEL_DIR = "smarthealth-tracker-laravel"
-        FLASK_DIR = "appflask"
-        PATH = "/usr/bin:/usr/local/bin:$PATH"
-        // Fix: Use absolute path for SQLite
-        DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite"
+        // Add other environment variables here
+        APP_ENV = "testing"
+        DB_CONNECTION = "sqlite"
+        CACHE_DRIVER = "array"
+        SESSION_DRIVER = "array"
+        QUEUE_DRIVER = "sync"
     }
 
     stages {
@@ -54,13 +33,26 @@ pipeline {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
+                    // Ensure .env exists with proper permissions
+                    sh '''
+                        cp .env.example .env
+                        chmod 644 .env
+                        php artisan key:generate --force
+                    '''
+                    
+                    // Install PHP dependencies
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
-                    sh 'test -f .env || cp .env.example .env'
-                    sh 'grep -q "^APP_KEY=" .env || php artisan key:generate'
-                    // Set up testing environment
-                    sh "echo '\nTEST_DB_CONNECTION=sqlite' >> .env"
-                    sh "echo 'DB_DATABASE=${DB_DATABASE}' >> .env"
-                    sh "echo 'DB_CONNECTION=sqlite' >> .env"
+                    
+                    // Update .env for testing
+                    sh """
+                        echo -e "\n# Testing Environment" >> .env
+                        echo "APP_ENV=testing" >> .env
+                        echo "DB_CONNECTION=sqlite" >> .env
+                        echo "DB_DATABASE=${DB_DATABASE}" >> .env
+                        echo "CACHE_DRIVER=array" >> .env
+                        echo "SESSION_DRIVER=array" >> .env
+                        echo "QUEUE_DRIVER=sync" >> .env
+                    """
                 }
             }
         }
@@ -69,148 +61,67 @@ pipeline {
             steps {
                 echo '🛠️ Building frontend assets...'
                 dir(env.LARAVEL_DIR) {
-                    sh 'npm install'
+                    sh 'npm install --no-audit --no-optional'
                     sh 'npm run build'
                 }
             }
         }
 
-      stage('Run Laravel Tests') {
-        steps {
-            echo '🧪 Running Laravel tests...'
-            dir(env.LARAVEL_DIR) {
-                // Create database directory and file
-                sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
-                sh "touch ${DB_DATABASE}"
-                
-                // Set up testing environment
-                sh """
-                    # Set environment variables
-                    export APP_ENV=testing
-                    export DB_CONNECTION=sqlite
-                    export DB_DATABASE=${DB_DATABASE}
-                    export CACHE_DRIVER=array
-                    export SESSION_DRIVER=array
-                    export QUEUE_DRIVER=sync
-                    
-                    # Generate application key if not exists
-                    if ! grep -q '^APP_KEY=' .env; then
-                        php artisan key:generate
-                    fi
-                    
-                    # Clear configuration and cache
-                    php artisan config:clear
-                    php artisan cache:clear
-                    
-                    # Create a fresh SQLite database
-                    php artisan migrate:fresh --force
-                    
-                    # Run tests
-                    php artisan test
-                """
-            }
-        }
-    }
-
-        stage('Setup Flask AI') {
+        stage('Run Laravel Tests') {
             steps {
-                echo '🐍 Setting up Python virtual environment for Flask AI...'
-                dir(env.FLASK_DIR) {
-                    sh "python3 -m venv ${env.VENV_DIR}"
-                    sh ". ${env.VENV_DIR}/bin/activate && pip install --upgrade pip"
-                    sh ". ${env.VENV_DIR}/bin/activate && pip install -r requirements.txt"
-                }
-            }
-        }
-
-        stage('Run Flask Tests') {
-            steps {
-                echo '🧪 Running Flask AI tests...'
-                dir(env.FLASK_DIR) {
-                    sh ". ${env.VENV_DIR}/bin/activate && python -m pytest tests -v"
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo '🧹 Cleaning up workspace...'
-            // Keep workspace for debugging, but clean up sensitive data
-            sh "rm -f ${DB_DATABASE} || true"
-        }
-        success {
-            echo '✅ Pipeline completed successfully!'
-        }
-        failure {
-            echo '❌ Pipeline failed!'
-        }
-    }
-}
-
-        stage('Build Frontend') {
-            steps {
-                echo '🛠️ Building frontend assets...'
+                echo '🧪 Running Laravel tests...'
                 dir(env.LARAVEL_DIR) {
-                    sh 'npm install'
-                    sh 'npm run build'
+                    sh """
+                        # Create database directory if not exists
+                        mkdir -p $(dirname ${DB_DATABASE})
+                        touch ${DB_DATABASE}
+                        chmod 666 ${DB_DATABASE}
+                        
+                        # Clear config and cache
+                        php artisan config:clear
+                        php artisan cache:clear
+                        
+                        # Run migrations and tests
+                        php artisan migrate:fresh --force
+                        php artisan test
+                    """
                 }
             }
         }
 
-      stage('Run Laravel Tests') {
-        steps {
-            echo '🧪 Running Laravel tests...'
-            dir(env.LARAVEL_DIR) {
-                // Create database directory and file
-                sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
-                sh "touch ${DB_DATABASE}"
-                
-                // Set up testing environment
-                sh """
-                    # Set environment variables
-                    export APP_ENV=testing
-                    export DB_CONNECTION=sqlite
-                    export DB_DATABASE=${DB_DATABASE}
-                    export CACHE_DRIVER=array
-                    export SESSION_DRIVER=array
-                    export QUEUE_DRIVER=sync
-                    
-                    # Generate application key if not exists
-                    if ! grep -q '^APP_KEY=' .env; then
-                        php artisan key:generate
-                    fi
-                    
-                    # Clear configuration and cache
-                    php artisan config:clear
-                    php artisan cache:clear
-                    
-                    # Create a fresh SQLite database
-                    php artisan migrate:fresh --force
-                    
-                    # Run tests
-                    php artisan test
-                """
-            }
-        }
-    }
-
         stage('Setup Flask AI') {
+            when {
+                expression { 
+                    fileExists("${env.FLASK_DIR}/requirements.txt") 
+                }
+            }
             steps {
                 echo '🐍 Setting up Python virtual environment for Flask AI...'
                 dir(env.FLASK_DIR) {
-                    sh "python3 -m venv ${env.VENV_DIR}"
-                    sh ". ${env.VENV_DIR}/bin/activate && pip install --upgrade pip"
-                    sh ". ${env.VENV_DIR}/bin/activate && pip install -r requirements.txt"
+                    sh """
+                        python3 -m venv ${env.VENV_DIR}
+                        . ${env.VENV_DIR}/bin/activate && \
+                        pip install --upgrade pip && \
+                        pip install -r requirements.txt
+                    """
                 }
             }
         }
 
         stage('Run Flask Tests') {
+            when {
+                expression { 
+                    fileExists("${env.FLASK_DIR}/requirements.txt") && 
+                    fileExists("${env.FLASK_DIR}/tests") 
+                }
+            }
             steps {
                 echo '🧪 Running Flask AI tests...'
                 dir(env.FLASK_DIR) {
-                    sh ". ${env.VENV_DIR}/bin/activate && python -m pytest tests -v"
+                    sh """
+                        . ${env.VENV_DIR}/bin/activate && \
+                        python -m pytest tests -v
+                    """
                 }
             }
         }
@@ -219,14 +130,23 @@ pipeline {
     post {
         always {
             echo '🧹 Cleaning up workspace...'
-            // Keep workspace for debugging, but clean up sensitive data
-            sh "rm -f ${DB_DATABASE} || true"
+            // Clean up sensitive data
+            script {
+                try {
+                    sh "rm -f ${DB_DATABASE} || true"
+                    sh "rm -f ${WORKSPACE}/${LARAVEL_DIR}/.env || true"
+                } catch (Exception e) {
+                    echo "⚠️ Cleanup warning: ${e.message}"
+                }
+            }
         }
         success {
             echo '✅ Pipeline completed successfully!'
+            // Add success notifications here
         }
         failure {
             echo '❌ Pipeline failed!'
+            // Add failure notifications here
         }
     }
 }
