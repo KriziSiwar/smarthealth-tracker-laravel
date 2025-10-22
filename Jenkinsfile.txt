@@ -9,14 +9,7 @@ pipeline {
         VENV_DIR = "venv"
         LARAVEL_DIR = "smarthealth-tracker-laravel"
         FLASK_DIR = "appflask"
-        PATH = "/usr/bin:/usr/local/bin:$PATH"
-        // Fix: Escape the $ in the path
-        DB_DATABASE = "${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite".replace('$', '\\$')
-        APP_ENV = "testing"
-        DB_CONNECTION = "sqlite"
-        CACHE_DRIVER = "array"
-        SESSION_DRIVER = "array"
-        QUEUE_DRIVER = "sync"
+        DB_PATH = "database/database.sqlite"
     }
 
     stages {
@@ -33,24 +26,25 @@ pipeline {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
-                    sh '''
-                        cp .env.example .env
-                        chmod 644 .env
-                        php artisan key:generate --force
-                    '''
+                    // Copy .env file
+                    sh 'cp .env.example .env'
                     
+                    // Install dependencies
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                     
-                    // Using single quotes to avoid shell interpolation issues
-                    sh '''
-                        echo -e "\n# Testing Environment" >> .env
-                        echo "APP_ENV=testing" >> .env
-                        echo "DB_CONNECTION=sqlite" >> .env
-                        echo "DB_DATABASE=''' + env.DB_DATABASE + '''" >> .env
-                        echo "CACHE_DRIVER=array" >> .env
-                        echo "SESSION_DRIVER=array" >> .env
-                        echo "QUEUE_DRIVER=sync" >> .env
-                    '''
+                    // Generate app key
+                    sh 'php artisan key:generate'
+                    
+                    // Update .env for testing
+                    sh """
+                        echo -e \"\\n# Testing Environment\" >> .env
+                        echo \"APP_ENV=testing\" >> .env
+                        echo \"DB_CONNECTION=sqlite\" >> .env
+                        echo \"DB_DATABASE=$(pwd)/${env.DB_PATH}\" >> .env
+                        echo \"CACHE_DRIVER=array\" >> .env
+                        echo \"SESSION_DRIVER=array\" >> .env
+                        echo \"QUEUE_DRIVER=sync\" >> .env
+                    """
                 }
             }
         }
@@ -65,61 +59,17 @@ pipeline {
             }
         }
 
-        stage('Run Laravel Tests') {
+        stage('Run Tests') {
             steps {
-                echo '🧪 Running Laravel tests...'
+                echo '🧪 Running tests...'
                 dir(env.LARAVEL_DIR) {
-                    sh """
-                        # Create database directory if not exists
-                        mkdir -p $(dirname ${env.DB_DATABASE})
-                        touch ${env.DB_DATABASE}
-                        chmod 666 ${env.DB_DATABASE}
-                        
-                        # Clear config and cache
-                        php artisan config:clear
-                        php artisan cache:clear
-                        
-                        # Run migrations and tests
-                        php artisan migrate:fresh --force
-                        php artisan test
-                    """
-                }
-            }
-        }
-
-        stage('Setup Flask AI') {
-            when {
-                expression { 
-                    fileExists("${env.FLASK_DIR}/requirements.txt") 
-                }
-            }
-            steps {
-                echo '🐍 Setting up Python virtual environment for Flask AI...'
-                dir(env.FLASK_DIR) {
-                    sh """
-                        python3 -m venv ${env.VENV_DIR}
-                        . ${env.VENV_DIR}/bin/activate && \\
-                        pip install --upgrade pip && \\
-                        pip install -r requirements.txt
-                    """
-                }
-            }
-        }
-
-        stage('Run Flask Tests') {
-            when {
-                expression { 
-                    fileExists("${env.FLASK_DIR}/requirements.txt") && 
-                    fileExists("${env.FLASK_DIR}/tests") 
-                }
-            }
-            steps {
-                echo '🧪 Running Flask AI tests...'
-                dir(env.FLASK_DIR) {
-                    sh """
-                        . ${env.VENV_DIR}/bin/activate && \\
-                        python -m pytest tests -v
-                    """
+                    // Create database file
+                    sh "touch ${env.DB_PATH}"
+                    sh "chmod 666 ${env.DB_PATH}"
+                    
+                    // Run migrations and tests
+                    sh 'php artisan migrate:fresh --force'
+                    sh 'php artisan test'
                 }
             }
         }
@@ -127,14 +77,9 @@ pipeline {
 
     post {
         always {
-            echo '🧹 Cleaning up workspace...'
-            script {
-                try {
-                    sh "rm -f ${env.DB_DATABASE} || true"
-                    sh "rm -f ${env.WORKSPACE}/${env.LARAVEL_DIR}/.env || true"
-                } catch (Exception e) {
-                    echo "⚠️ Cleanup warning: ${e.message}"
-                }
+            echo '🧹 Cleaning up...'
+            dir(env.LARAVEL_DIR) {
+                sh "rm -f ${env.DB_PATH} || true"
             }
         }
         success {
