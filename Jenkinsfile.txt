@@ -23,32 +23,31 @@ pipeline {
         }
 
         stage('Setup Laravel') {
-            steps {
-                echo '🔧 Setting up Laravel...'
-                dir(env.LARAVEL_DIR) {
-                    // Copier .env et installer les dépendances
-                    sh 'cp .env.example .env'
-                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
-                    sh 'php artisan key:generate'
-                    
-                    // Installer Breeze
-                    sh 'php artisan breeze:install'
-                    
-                    // Mise à jour du .env
-                    sh '''
-                        echo "" >> .env
-                        echo "# Testing Environment" >> .env
-                        echo "APP_ENV=testing" >> .env
-                        echo "DB_CONNECTION=sqlite" >> .env
-                        echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
-                        echo "CACHE_DRIVER=array" >> .env
-                        echo "SESSION_DRIVER=array" >> .env
-                        echo "QUEUE_DRIVER=sync" >> .env
-                    '''
+                steps {
+                    echo '🔧 Setting up Laravel...'
+                    dir(env.LARAVEL_DIR) {
+                        // Copy .env and install dependencies
+                        sh 'cp .env.example .env'
+                        sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                        sh 'php artisan key:generate'
+                        
+                        // Install Breeze non-interactively
+                        sh 'php artisan breeze:install blade --pest --ssr --dark'
+                        
+                        // Update .env
+                        sh '''
+                            echo "" >> .env
+                            echo "# Testing Environment" >> .env
+                            echo "APP_ENV=testing" >> .env
+                            echo "DB_CONNECTION=sqlite" >> .env
+                            echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+                            echo "CACHE_DRIVER=array" >> .env
+                            echo "SESSION_DRIVER=array" >> .env
+                            echo "QUEUE_DRIVER=sync" >> .env
+                        '''
+                    }
                 }
             }
-        }
-
         stage('Setup Frontend') {
             steps {
                 echo '🔄 Setting up frontend...'
