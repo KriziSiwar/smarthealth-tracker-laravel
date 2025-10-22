@@ -49,14 +49,20 @@ pipeline {
 
         stage('Build Frontend') {
             steps {
-                echo 'Installing Node dependencies and building frontend...'
-                dir('smarthealth-tracker-laravel') { // <-- ici
-                    sh 'ls -la'          // pour vérifier que package.json est là
+                echo 'Installing Node dependencies and building frontend with Laravel + Vite...'
+                dir('smarthealth-tracker-laravel') {
+                    // Vérifie que package.json est là
+                    sh 'ls -la'
+        
+                    // Installe les dépendances Node
                     sh 'npm install'
-                    sh 'npm run build'
+        
+                    // Build avec Vite pour Laravel
+                    sh 'npx vite build'
                 }
             }
         }
+
 
 
 
