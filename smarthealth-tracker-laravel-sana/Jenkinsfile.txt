@@ -1,15 +1,14 @@
 pipeline {
     agent any
 
-    // Définition des outils installés via Jenkins
     tools {
-        nodejs 'Node20'     // Nom de NodeJS configuré dans Jenkins
-        composer 'Composer' // Nom de Composer configuré dans Jenkins
+        nodejs 'Node20' // Nom de NodeJS configuré dans Jenkins
     }
 
     environment {
-        VENV_DIR = "venv"                   // Pour l'environnement Python
-        PATH = "/usr/local/bin:$PATH"       // Assure que composer, php, npm sont trouvés
+        VENV_DIR = "venv"
+        PATH = "/usr/local/bin:$PATH" // Assure que composer, php, npm sont trouvés
+        COMPOSER_CMD = "/usr/bin/composer" // chemin absolu de composer sur ton système
     }
 
     stages {
@@ -25,8 +24,8 @@ pipeline {
 
         stage('Setup Laravel') {
             steps {
-                echo 'Installing PHP dependencies...'
-                sh 'composer install --no-interaction --prefer-dist'
+                echo 'Installing PHP dependencies via Composer...'
+                sh "${COMPOSER_CMD} install --no-interaction --prefer-dist"
             }
         }
 
@@ -47,7 +46,7 @@ pipeline {
 
         stage('Setup Flask AI') {
             steps {
-                echo 'Setting up Python virtual environment...'
+                echo 'Setting up Python virtual environment for Flask AI...'
                 sh "python3 -m venv ${VENV_DIR}"
                 sh """
                    . ${VENV_DIR}/bin/activate
@@ -70,7 +69,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying project...'
-                // Remplace ce placeholder par tes commandes de déploiement
+                // Ici tu peux mettre tes commandes de déploiement réelles
                 sh 'echo "Deployment placeholder"'
             }
         }
