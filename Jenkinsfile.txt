@@ -24,30 +24,40 @@ pipeline {
         stage('Setup Laravel') {
             steps {
                 echo 'Installing PHP dependencies via Composer...'
-                sh 'composer install --no-interaction --prefer-dist'
+                dir('smarthealth-tracker-laravel') {
+                    sh 'composer install --no-interaction --prefer-dist'
+                }
             }
         }
 
         stage('Laravel Migrations') {
             steps {
                 echo 'Checking and running Laravel migrations...'
-                sh 'php artisan migrate:status'
-                sh 'php artisan migrate --force'
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    // Vérifie le statut des migrations
+                    sh 'php artisan migrate:status'
+                    // Exécute les migrations si besoin
+                    sh 'php artisan migrate --force'
+                }
             }
         }
 
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
-                sh 'npm install'
-                sh 'npm run build'
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
             }
         }
 
         stage('Laravel Tests') {
             steps {
                 echo 'Running Laravel tests...'
-                sh 'php artisan test'
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
+                    sh 'php artisan test'
+                }
             }
         }
 
