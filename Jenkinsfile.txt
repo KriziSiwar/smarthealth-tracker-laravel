@@ -15,7 +15,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Cloning repository...'
-                git branch: 'integrationnn',
+                git branch: 'siwar_new_integration',
                     url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
                     credentialsId: 'GithubToken-laravel'
             }
