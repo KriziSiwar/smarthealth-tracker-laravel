@@ -49,16 +49,20 @@ pipeline {
             }
         }
 
-        stage('Run Laravel Tests') {
+         stage('Run Laravel Tests') {
             steps {
                 echo '🧪 Running Laravel tests...'
                 dir(env.LARAVEL_DIR) {
                     // Create and prepare test database
                     sh "mkdir -p ${WORKSPACE}/${LARAVEL_DIR}/database"
                     sh "touch ${DB_DATABASE}"
-                    sh 'php artisan config:clear'
-                    sh 'php artisan cache:clear'
-                    sh 'php artisan migrate:fresh --env=testing --force'
+                    
+                    // Create the cache table before running tests
+                    sh 'php artisan config:cache'
+                    sh 'php artisan cache:table'
+                    sh 'php artisan migrate --database=sqlite --env=testing --force'
+                    
+                    // Run tests
                     sh 'php artisan test'
                 }
             }
