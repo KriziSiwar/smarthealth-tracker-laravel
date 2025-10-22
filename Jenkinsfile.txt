@@ -7,86 +7,72 @@ pipeline {
 
     environment {
         VENV_DIR = "venv"
+        LARAVEL_DIR = "smarthealth-tracker-laravel"
+        FLASK_DIR = "appflask"
         PATH = "/usr/bin:/usr/local/bin:$PATH"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
-                echo 'Cloning repository...'
+                echo '🚀 Cloning repository...'
                 git branch: 'siwar_new_integration',
                     url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
                     credentialsId: 'GithubToken-laravel'
             }
         }
 
-        stage('Check Workspace') {
-            steps {
-                echo 'Listing files in workspace...'
-                sh 'pwd'
-                sh 'ls -R'
-            }
-        }
-
-        stage('Check Files') {
-            steps {
-                echo 'Listing all files in workspace'
-                sh 'pwd'
-                sh 'ls -R'
-            }
-        }
-
-
         stage('Setup Laravel') {
             steps {
-                echo 'Installing PHP dependencies via Composer...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'composer install --no-interaction --prefer-dist'
+                echo '🔧 Setting up Laravel...'
+                dir(env.LARAVEL_DIR) {
+                    // Install PHP dependencies
+                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                    
+                    // Copy environment file if not exists
+                    sh 'test -f .env || cp .env.example .env'
+                    
+                    // Generate application key if not set
+                    sh 'grep -q "^APP_KEY=" .env || php artisan key:generate'
                 }
             }
         }
 
         stage('Build Frontend') {
             steps {
-                echo 'Installing Node dependencies and building frontend with Laravel + Vite...'
-                dir('smarthealth-tracker-laravel') {
-                    // Vérifie que package.json est là
-                    sh 'ls -la'
-        
-                    // Installe les dépendances Node
+                echo '🛠️ Building frontend assets...'
+                dir(env.LARAVEL_DIR) {
                     sh 'npm install'
-        
-                    // Build avec Vite pour Laravel
-                    sh 'npx vite build'
+                    sh 'npm run build'  // Changed from 'npx vite build' to use the proper npm script
                 }
             }
         }
 
-
-
-
-
-        stage('Laravel Tests') {
+        stage('Run Laravel Tests') {
+            environment {
+                DB_CONNECTION = 'sqlite'
+                DB_DATABASE = '${WORKSPACE}/${LARAVEL_DIR}/database/database.sqlite'
+            }
             steps {
-                echo 'Running Laravel tests...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'php artisan migrate --env=testing'
-                    sh 'php artisan test'
+                echo '🧪 Running Laravel tests...'
+                dir(env.LARAVEL_DIR) {
+                    // Create SQLite database for testing
+                    sh 'touch database/database.sqlite'
+                    sh 'php artisan migrate:fresh --env=testing --force'
+                    sh 'php artisan test --env=testing'
                 }
             }
         }
-
 
         stage('Setup Flask AI') {
             steps {
-                echo 'Setting up Python virtual environment for Flask AI...'
-                dir('appflask') {
+                echo '🐍 Setting up Python virtual environment for Flask AI...'
+                dir(env.FLASK_DIR) {
                     sh """
-                       python3 -m venv ${VENV_DIR}
-                       source ${VENV_DIR}/bin/activate
-                       pip install --upgrade pip
-                       pip install -r requirements.txt
+                        python3 -m venv ${env.VENV_DIR}
+                        . ${env.VENV_DIR}/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
                     """
                 }
             }
@@ -94,31 +80,40 @@ pipeline {
 
         stage('Run Flask Tests') {
             steps {
-                echo 'Running Flask AI tests...'
-                dir('appflask') {
+                echo '🧪 Running Flask AI tests...'
+                dir(env.FLASK_DIR) {
                     sh """
-                       source ${VENV_DIR}/bin/activate
-                       pytest tests
+                        . ${env.VENV_DIR}/bin/activate
+                        python -m pytest tests -v
                     """
                 }
             }
         }
 
         stage('Deploy') {
+            when {
+                branch 'main'  // Only deploy from main branch
+            }
             steps {
-                echo 'Deploying project...'
-                sh 'echo "Deployment placeholder"'
+                echo '🚀 Starting deployment...'
+                // Add your deployment steps here
+                // Example: sh 'rsync -avz . user@server:/path/to/deploy'
             }
         }
-
-    } // fin de stages
+    }
 
     post {
+        always {
+            echo '🧹 Cleaning up workspace...'
+            cleanWs()
+        }
         success {
-            echo 'Pipeline finished successfully!'
+            echo '✅ Pipeline completed successfully!'
+            // Add notification here (Slack, Email, etc.)
         }
         failure {
-            echo 'Pipeline failed!'
+            echo '❌ Pipeline failed!'
+            // Add failure notification here
         }
     }
 }
