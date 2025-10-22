@@ -24,40 +24,33 @@ pipeline {
         stage('Setup Laravel') {
             steps {
                 echo 'Installing PHP dependencies via Composer...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'composer install --no-interaction --prefer-dist'
-                }
+                sh 'composer install --no-interaction --prefer-dist'
             }
         }
 
         stage('Laravel Migrations') {
             steps {
                 echo 'Preparing SQLite database and running migrations...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'mkdir -p database'
-                    sh 'touch database/database.sqlite'
-                    sh 'php artisan migrate:status'
-                    sh 'php artisan migrate --force'
-                }
+                // Crée le fichier SQLite si nécessaire
+                sh 'mkdir -p database'
+                sh 'touch database/database.sqlite'
+                sh 'php artisan migrate:status'
+                sh 'php artisan migrate --force'
             }
         }
 
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'npm install'
-                    sh 'npm run build'
-                }
+                sh 'npm install'
+                sh 'npm run build'
             }
         }
 
         stage('Laravel Tests') {
             steps {
                 echo 'Running Laravel tests...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'php artisan test'
-                }
+                sh 'php artisan test'
             }
         }
 
@@ -75,3 +68,28 @@ pipeline {
 
         stage('Run Flask Tests') {
             steps {
+                echo 'Running Flask AI tests...'
+                sh """
+                   source ${VENV_DIR}/bin/activate
+                   pytest flask_app/tests
+                """
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying project...'
+                sh 'echo "Deployment placeholder"'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline finished successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
