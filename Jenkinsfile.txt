@@ -29,16 +29,17 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
                 dir('smarthealth-tracker-laravel') {
-                    sh 'npm install'
-                    sh 'npm run build'
+                    sh 'npm install --prefix resources/js'
+                    sh 'npm run build --prefix resources/js'
                 }
             }
         }
+
 
         stage('Laravel Tests') {
             steps {
