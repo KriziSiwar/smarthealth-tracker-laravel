@@ -33,12 +33,13 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
-                dir("${WORKSPACE}") {   // workspace racine
+                dir('smarthealth-tracker-laravel-sana/smarthealth-tracker-laravel') {
                     sh 'npm install'
                     sh 'npm run build'
                 }
             }
         }
+
 
 
         stage('Laravel Tests') {
