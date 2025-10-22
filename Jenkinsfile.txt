@@ -30,18 +30,6 @@ pipeline {
             }
         }
 
-        stage('Laravel Migrations') {
-            steps {
-                echo 'Preparing SQLite database and running migrations...'
-                dir('smarthealth-tracker-laravel') {
-                    sh 'mkdir -p database'
-                    sh 'touch database/database.sqlite'
-                    sh 'php artisan migrate:status'
-                    sh 'php artisan migrate --force'
-                }
-            }
-        }
-
         stage('Build Frontend') {
             steps {
                 echo 'Installing Node dependencies and building frontend...'
