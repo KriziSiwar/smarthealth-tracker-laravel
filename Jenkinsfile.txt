@@ -21,6 +21,15 @@ pipeline {
             }
         }
 
+        stage('Check Files') {
+            steps {
+                echo 'Listing all files in workspace'
+                sh 'pwd'
+                sh 'ls -R'
+            }
+        }
+
+
         stage('Setup Laravel') {
             steps {
                 echo 'Installing PHP dependencies via Composer...'
