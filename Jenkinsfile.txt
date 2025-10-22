@@ -81,5 +81,20 @@ pipeline {
                 }
             }
         }
+    }
 
- 
+    post {
+        always {
+            echo '🧹 Cleaning up...'
+            dir(env.LARAVEL_DIR) {
+                sh 'rm -f database/database.sqlite || true'
+            }
+        }
+        success {
+            echo '✅ Pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed!'
+        }
+    }
+}
