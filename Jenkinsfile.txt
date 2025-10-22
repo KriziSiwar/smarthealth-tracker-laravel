@@ -46,14 +46,19 @@ pipeline {
             }
         }
 
-        stage('Install Frontend Dependencies') {
+        stage('Setup Frontend') {
             steps {
-                echo '📦 Installing frontend dependencies...'
+                echo '🔄 Setting up frontend...'
                 dir(env.LARAVEL_DIR) {
-                    // Supprimer node_modules et package-lock.json s'ils existent
-                    sh 'rm -rf node_modules package-lock.json || true'
-                    // Installer les dépendances
-                    sh 'npm ci --no-audit --prefer-offline'
+                    // Installer Node.js et npm
+                    sh 'node -v'
+                    sh 'npm -v'
+                    
+                    // Nettoyer et installer les dépendances
+                    sh 'rm -rf node_modules/'
+                    sh 'rm -f package-lock.json'
+                    sh 'npm cache clean --force'
+                    sh 'npm install --no-audit --prefer-offline'
                 }
             }
         }
@@ -64,7 +69,7 @@ pipeline {
                 dir(env.LARAVEL_DIR) {
                     // Désactiver les mises à jour automatiques
                     sh 'export VITE_DISABLE_OPEN_BROWSER=true'
-                    sh 'npm run build -- --mode=production'
+                    sh 'npm run build'
                 }
             }
         }
