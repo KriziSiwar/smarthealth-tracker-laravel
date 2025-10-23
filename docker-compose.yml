@@ -1,59 +1,70 @@
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: laravel_app
-    restart: unless-stopped
-    working_dir: /var/www
-    volumes:
-      - .:/var/www
-      - /var/www/vendor
-      - /var/www/node_modules
-    environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - DB_HOST=db
-      - DB_DATABASE=laravel
-      - DB_USERNAME=root
-      - DB_PASSWORD=password
-    depends_on:
-      - db
-    networks:
-      - laravel_network
+  # ... (vos services existants restent inchangés) ...
 
-  db:
-    image: mysql:8.0
-    container_name: laravel_db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: laravel
-      MYSQL_ROOT_PASSWORD: password
-    volumes:
-      - dbdata:/var/lib/mysql
-    networks:
-      - laravel_network
-
-  nginx:
-    image: nginx:alpine
-    container_name: laravel_nginx
-    restart: unless-stopped
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
     ports:
-      - "80:80"
+      - "9090:9090"
     volumes:
-      - ./:/var/www
-      - ./docker/nginx:/etc/nginx/conf.d
-    depends_on:
-      - app
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - laravel_network
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - laravel_network
+    restart: unless-stopped
+
+  # Node Exporter (métriques système)
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro,rslave'
     networks:
       - laravel_network
 
-networks:
-  laravel_network:
-    driver: bridge
+  # cAdvisor (métriques Docker)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - laravel_network
+    restart: unless-stopped
+
+# ... (vos networks et volumes existants) ...
 
 volumes:
   dbdata:
     driver: local
+  prometheus_data: {}
+  grafana_data: {}
