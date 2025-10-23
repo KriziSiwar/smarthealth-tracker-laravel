@@ -9,10 +9,9 @@ pipeline {
         LARAVEL_DIR = 'smarthealth-tracker-laravel'
         DOCKER_IMAGE = "krizisiwar/smarthealth-tracker:${BUILD_NUMBER}"
 
-       NEXUS_URL = 'localhost:8082'
+        NEXUS_URL = 'localhost:5000'           // Port HTTP de Docker Connector
         NEXUS_REPO = 'docker-hosted'
         NEXUS_IMAGE = "${NEXUS_URL}/${NEXUS_REPO}/smarthealth-tracker"
-  
     }
 
     stages {
@@ -25,7 +24,7 @@ pipeline {
             }
         }
 
-      stage('Setup Laravel') {
+        stage('Setup Laravel') {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
@@ -68,38 +67,36 @@ pipeline {
             }
         }
 
-
-
-stage('Build and Push to Nexus') {
+        stage('Build and Push to Nexus') {
             environment {
                 NEXUS_CREDS = credentials('nexus-token')  // Format: username:token
             }
             steps {
-                echo '🏗️ Building and pushing to Nexus...'
+                echo '🏗️ Building and pushing Docker image to Nexus...'
                 dir(env.LARAVEL_DIR) {
                     script {
                         def imageTag = "${NEXUS_IMAGE}:${env.BUILD_NUMBER}"
                         def latestTag = "${NEXUS_IMAGE}:latest"
-                        
-                        // Build l'image
+
+                        // Build l'image Docker
                         sh "docker build -t ${imageTag} ."
-                        
-                        // Tagger pour latest
+
+                        // Tag pour latest
                         sh "docker tag ${imageTag} ${latestTag}"
-                        
-                        // Login à Nexus
+
+                        // Login dans Nexus
                         sh """
                             echo ${NEXUS_CREDS_PSW} | \
                             docker login ${NEXUS_URL} \
                                 -u ${NEXUS_CREDS_USR} \
                                 --password-stdin
                         """
-                        
+
                         // Push des images
                         sh "docker push ${imageTag}"
                         sh "docker push ${latestTag}"
-                        
-                        // Nettoyage
+
+                        // Nettoyage local
                         sh "docker rmi ${imageTag} ${latestTag} || true"
                     }
                 }
@@ -110,13 +107,9 @@ stage('Build and Push to Nexus') {
             when {
                 anyOf {
                     branch 'siwar_new_integration'
-                    expression { 
-                        def currentBranch = env.BRANCH_NAME ?: sh(
-                            script: 'git rev-parse --abbrev-ref HEAD', 
-                            returnStdout: true
-                        ).trim()
-                        return currentBranch == 'siwar_new_integration' || 
-                               currentBranch == 'origin/siwar_new_integration'
+                    expression {
+                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
                     }
                 }
             }
@@ -126,11 +119,11 @@ stage('Build and Push to Nexus') {
             steps {
                 script {
                     def imageToDeploy = "${NEXUS_IMAGE}:${env.BUILD_NUMBER}"
-                    
+
                     // Arrêter et supprimer le conteneur existant
                     sh 'docker stop smarthealth-app || true'
                     sh 'docker rm smarthealth-app || true'
-                    
+
                     // Pull et run la nouvelle image
                     sh """
                         docker pull ${imageToDeploy}
@@ -144,65 +137,101 @@ stage('Build and Push to Nexus') {
             }
         }
 
+        stage('SonarQube Analysis') {
+            environment {
+                SONAR_AUTH_TOKEN = credentials('sonarToken')
+            }
+            steps {
+                echo '🔍 Running SonarQube analysis...'
+                dir(env.LARAVEL_DIR) {
+                    sh 'npm install -g sonar-scanner'
+                    sh '''
+                        cat > sonar-project.properties << 'EOL'
+                        sonar.projectKey=smarthealth-tracker
+                        sonar.projectName=SmartHealth Tracker
+                        sonar.projectVersion=1.0
+                        sonar.sources=.
+                        sonar.sourceEncoding=UTF-8
+                        sonar.excludes=**/node_modules/**,**/*.spec.js
+                        sonar.php.coverage.reportPaths=coverage.xml
+                        EOL
 
-    stage('SonarQube Analysis') {
-    environment {
-        SONAR_AUTH_TOKEN = credentials('sonarToken')
-    }
-    steps {
-        echo '🔍 Running SonarQube analysis...'
-        dir(env.LARAVEL_DIR) {
-            sh 'npm install -g sonar-scanner'
-            sh '''
-                # Create sonar-project.properties
-                cat > sonar-project.properties << 'EOL'
-                sonar.projectKey=smarthealth-tracker
-                sonar.projectName=SmartHealth Tracker
-                sonar.projectVersion=1.0
-                sonar.sources=.
-                sonar.sourceEncoding=UTF-8
-                sonar.excludes=**/node_modules/**,**/*.spec.js
-                sonar.php.coverage.reportPaths=coverage.xml
-                EOL
-                
-                # Run sonar-scanner with token
-                sonar-scanner -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_AUTH_TOKEN
-            '''
+                        sonar-scanner -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_AUTH_TOKEN
+                    '''
+                }
+            }
         }
-    }
-}
 
-stage('Test SonarQube Connection') {
-    environment {
-        SONAR_AUTH_TOKEN = credentials('sonarToken')
-    }
-    steps {
-        sh '''
-            echo "Testing SonarQube connection..."
-            curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
-            -u $SONAR_AUTH_TOKEN: http://localhost:9000/api/system/health
-        '''
-    }
-}
-
-
-
-
-
-
-
-        stage('Build Docker Image') {
-    steps {
-        script {
-            echo '🐳 Building Docker image...'
-            sh """
-                docker build -t ${DOCKER_IMAGE} .
-                # Add additional tag for latest
-                docker tag ${DOCKER_IMAGE} siwarkrizii/smarthealth-tracker:latest
-            """
+        stage('Test SonarQube Connection') {
+            environment {
+                SONAR_AUTH_TOKEN = credentials('sonarToken')
+            }
+            steps {
+                sh '''
+                    echo "Testing SonarQube connection..."
+                    curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
+                    -u $SONAR_AUTH_TOKEN: http://localhost:9000/api/system/health
+                '''
+            }
         }
-    }
-}
+
+        stage('Build Docker Image for Docker Hub') {
+            steps {
+                script {
+                    echo '🐳 Building Docker image for Docker Hub...'
+                    sh """
+                        docker build -t ${DOCKER_IMAGE} .
+                        docker tag ${DOCKER_IMAGE} siwarkrizii/smarthealth-tracker:latest
+                    """
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            when {
+                anyOf {
+                    branch 'siwar_new_integration'
+                    expression {
+                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+                    }
+                }
+            }
+            steps {
+                script {
+                    echo "🚢 Pushing Docker image to Docker Hub..."
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-hub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+                        sh '''
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            docker push "$DOCKER_IMAGE"
+                            docker logout
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                anyOf {
+                    branch 'siwar_new_integration'
+                    expression {
+                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+                    }
+                }
+            }
+            steps {
+                script {
+                    echo "🚀 Deploying application..."
+                    sh 'echo "Deployment would happen here"'
+                }
+            }
+        }
 
         stage('Debug Branch Info') {
             steps {
@@ -212,60 +241,11 @@ stage('Test SonarQube Connection') {
                 }
             }
         }
-
-       stage('Push to Docker Hub') {
-    when {
-        anyOf {
-            branch 'siwar_new_integration'
-            expression {
-                def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
-            }
-        }
-    }
-    steps {
-        script {
-            echo "🚢 Pushing Docker image to Docker Hub..."
-            withCredentials([usernamePassword(
-                credentialsId: 'docker-hub-credentials',
-                usernameVariable: 'DOCKER_USERNAME',
-                passwordVariable: 'DOCKER_PASSWORD'
-            )]) {
-                sh '''
-                    echo "Logging into Docker Hub..."
-                    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                    echo "Pushing image $DOCKER_IMAGE..."
-                    docker push "$DOCKER_IMAGE"
-                    docker logout
-                '''
-            }
-        }
-    }
-}
-
-        stage('Deploy') {
-            when {
-                anyOf {
-                    branch 'siwar_new_integration'
-                    expression { 
-                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
-                    }
-                }
-            }
-            steps {
-                script {
-                    echo "🚀 Deploying application..."
-                    // Your deployment commands here
-                    sh 'echo "Deployment would happen here"'
-                }
-            }
-        }
     }
 
     post {
         always {
-            echo '🧹 Cleaning up...'
+            echo '🧹 Cleaning up Docker images and containers...'
             sh 'docker container prune -f || true'
             sh 'docker image prune -f || true'
         }
