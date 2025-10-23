@@ -67,7 +67,6 @@ pipeline {
             steps {
                 script {
                     echo '🐳 Building Docker image...'
-                    // Build from the root directory
                     sh "docker build -t ${env.DOCKER_IMAGE} ."
                 }
             }
@@ -75,7 +74,7 @@ pipeline {
 
         stage('Push to Docker Hub') {
             when {
-                branch 'main'
+                branch 'siwar_new_integration'
             }
             steps {
                 script {
@@ -95,7 +94,7 @@ pipeline {
 
         stage('Deploy') {
             when {
-                branch 'main'
+                branch 'siwar_new_integration'
             }
             steps {
                 echo '🚀 Deploying with Docker Compose...'
