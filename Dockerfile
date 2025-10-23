@@ -1,9 +1,9 @@
 # Build stage for Node.js
 FROM node:20 AS node_build
 WORKDIR /app
-COPY package*.json ./
+COPY smarthealth-tracker-laravel/package*.json ./
 RUN npm install
-COPY . .
+COPY smarthealth-tracker-laravel/ .
 RUN npm run build
 
 # Production stage
@@ -28,7 +28,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www
 
 # Copy application files
-COPY . /var/www
+COPY smarthealth-tracker-laravel/ /var/www
 
 # Copy built assets from node_build stage
 COPY --from=node_build /app/public/build /var/www/public/build
@@ -42,7 +42,7 @@ RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 /var/www/bootstrap/cache
 
 # Copy .env file (handled in production)
-COPY .env.example .env
+COPY smarthealth-tracker-laravel/.env.example /var/www/.env
 
 # Generate application key
 RUN php artisan key:generate
