@@ -73,64 +73,62 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
-            when {
-                branch 'siwar_new_integration'
-                anyOf {
-                    branch 'siwar_new_integration'
-                  
-                }
-            }
-            steps {
-                script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-credentials',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )]) {
-                        sh """
-                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                            docker push ${env.DOCKER_IMAGE}
-                            docker logout
-                        """
-                    }
-                }
-            }
+      stage('Debug Branch Info') {
+    steps {
+        script {
+            echo "Current branch: ${env.BRANCH_NAME}"
+            echo "Git branch: ${sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()}"
         }
+    }
+}
 
-        stage('Deploy') {
-            when {
-                anyOf {
-                    branch 'siwar_new_integration'
-                    branch 'main'
-                    branch 'master'
-                }
-            }
-            steps {
-                script {
-                    sh """
-                        # Stop and remove existing containers
-                        docker-compose down || true
-                        
-                        # Pull the latest image
-                        docker pull ${env.DOCKER_IMAGE}
-                        
-                        # Start the application
-                        docker-compose up -d
-                        
-                        # Run migrations
-                        docker-compose exec -T app php artisan migrate --force
-                    """
-                }
+stage('Push to Docker Hub') {
+    when {
+        // Try both the direct branch check and a more permissive check
+        anyOf {
+            branch 'siwar_new_integration'
+            expression { 
+                def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                echo "Current branch in expression: ${currentBranch}"
+                return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
             }
         }
     }
+    steps {
+        script {
+            echo "🚢 Pushing Docker image to Docker Hub..."
+            withCredentials([usernamePassword(
+                credentialsId: 'docker-hub-credentials',
+                usernameVariable: 'DOCKER_USERNAME',
+                passwordVariable: 'DOCKER_PASSWORD'
+            )]) {
+                sh """
+                    echo "Logging into Docker Hub..."
+                    echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                    echo "Pushing image ${DOCKER_IMAGE}..."
+                    docker push ${DOCKER_IMAGE}
+                    docker logout
+                """
+            }
+        }
+    }
+}
 
-    post {
-        always {
-            echo '🧹 Cleaning up...'
-            sh 'docker container prune -f || true'
-            sh 'docker image prune -f || true'
+stage('Deploy') {
+    when {
+        anyOf {
+            branch 'siwar_new_integration'
+            expression { 
+                def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+            }
+        }
+    }
+    steps {
+        script {
+            echo "🚀 Deploying application..."
+            // Your deployment commands here
+            sh 'echo "Deployment would happen here"'
         }
     }
 }
