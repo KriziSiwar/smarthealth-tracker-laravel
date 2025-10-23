@@ -66,45 +66,7 @@ pipeline {
             }
         }
 
-stage('Deploy Monitoring Stack') {
-    steps {
-        echo '📊 Deploying Grafana and monitoring stack...'
-        script {
-            // Créer le répertoire de configuration Grafana s'il n'existe pas
-            sh 'mkdir -p monitoring/grafana/provisioning/datasources'
-            
-            // Créer la configuration du datasource pour Grafana
-            writeFile file: 'monitoring/grafana/provisioning/datasources/prometheus.yml', text: """
-            apiVersion: 1
-            datasources:
-              - name: Prometheus
-                type: prometheus
-                access: proxy
-                url: http://prometheus:9090
-                isDefault: true
-            """
-            
-            // Démarrer les services de monitoring
-            sh 'docker-compose -f docker-compose.monitoring.yml up -d'
-            
-            // Attendre que Grafana soit prêt
-            sh '''
-                echo "En attente que Grafana soit prêt..."
-                until curl -s http://localhost:3000/api/health; do
-                    echo "En attente de Grafana..."
-                    sleep 5
-                done
-            '''
-            
-            // Importer le tableau de bord par défaut
-            sh '''
-                curl -X POST http://admin:admin@localhost:3000/api/dashboards/import \\
-                    -H "Content-Type: application/json" \\
-                    -d @monitoring/grafana/dashboard.json
-            '''
-        }
-    }
-}
+
 
 
 stage('Debug File Structure') {
