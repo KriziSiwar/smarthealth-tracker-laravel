@@ -1,15 +1,23 @@
-# Étape de construction
+# Build stage for Node.js
 FROM node:20 AS node_build
 WORKDIR /app
-COPY smarthealth-tracker-laravel/package*.json ./
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
 RUN npm install
-COPY smarthealth-tracker-laravel/ .
+
+# Copy the rest of the application
+COPY . .
+
+# Build assets
 RUN npm run build
 
-# Étape de production
+# Production stage
 FROM php:8.2-fpm
 
-# Installer les dépendances système
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -21,41 +29,34 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl gd zip
 
-# Installer Composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Définir le répertoire de travail
+# Set working directory
 WORKDIR /var/www
 
-# Copier les fichiers du projet
-COPY smarthealth-tracker-laravel/ /var/www
+# Copy application files
+COPY . /var/www
+
+# Copy built assets from node_build stage
 COPY --from=node_build /app/public/build /var/www/public/build
 
-# Installer les dépendances PHP
+# Install PHP dependencies (no dev dependencies)
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
-# Définir les permissions
+# Set permissions
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 /var/www/storage \
     && chmod -R 775 /var/www/bootstrap/cache
 
+# Copy .env file (you might want to handle this differently in production)
+COPY .env.example .env
 
+# Generate application key
+RUN php artisan key:generate
 
-    # Build stage
-FROM node:20 AS node_build
-WORKDIR /app
-COPY smarthealth-tracker-laravel/package*.json ./
-RUN npm install
-COPY smarthealth-tracker-laravel/ .
-RUN npm run build
-
-# Production stage
-FROM php:8.2-fpm
-
-# ... rest of your Dockerfile ...
-
-# Exposer le port 9000
+# Expose port 9000 for PHP-FPM
 EXPOSE 9000
 
-# Démarrer PHP-FPM
+# Start PHP-FPM
 CMD ["php-fpm"]
