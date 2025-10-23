@@ -67,7 +67,7 @@ pipeline {
     stage('SonarQube Analysis') {
     environment {
         // Make sure this matches your Jenkins credential ID
-        SONAR_AUTH_TOKEN = credentials('sonar-token')
+        SONAR_AUTH_TOKEN = credentials('sonarToken')
     }
     steps {
         echo '🔍 Running SonarQube analysis...'
