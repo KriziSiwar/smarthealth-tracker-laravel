@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm
 
-# Installer les extensions PHP nécessaires
+# Installer les extensions PHP
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
 # Installer Composer
@@ -26,7 +26,7 @@ WORKDIR /var/www
 COPY . .
 
 # Installer les dépendances
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 RUN npm install
 RUN npm run build
 
