@@ -89,7 +89,7 @@ pipeline {
     when {
         anyOf {
             branch 'siwar_new_integration'
-            expression { 
+            expression {
                 def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
                 return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
             }
@@ -103,19 +103,13 @@ pipeline {
                 usernameVariable: 'DOCKER_USERNAME',
                 passwordVariable: 'DOCKER_PASSWORD'
             )]) {
-                // First login to Docker Hub
-                sh """
+                sh '''
                     echo "Logging into Docker Hub..."
-                    echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                    echo "Pushing image ${DOCKER_IMAGE}..."
-                    # Add retry logic for the push
-                    timeout(time: 5, unit: 'MINUTES') {
-                        retry(3) {
-                            docker push ${DOCKER_IMAGE}
-                        }
-                    }
+                    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                    echo "Pushing image $DOCKER_IMAGE..."
+                    docker push "$DOCKER_IMAGE"
                     docker logout
-                """
+                '''
             }
         }
     }
