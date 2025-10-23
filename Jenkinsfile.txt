@@ -69,10 +69,32 @@ pipeline {
         }
 
 
+stage('Debug File Structure') {
+    steps {
+        echo '🔍 Debugging file structure...'
+        dir(env.LARAVEL_DIR) {
+            sh '''
+                echo "Current directory: $(pwd)"
+                echo "Files in directory:"
+                ls -la
+                echo "Checking for Dockerfile:"
+                if [ -f "Dockerfile" ]; then
+                    echo "✅ Dockerfile exists"
+                    cat Dockerfile
+                else
+                    echo "❌ Dockerfile not found in $(pwd)"
+                    echo "Searching for Dockerfile in parent directories:"
+                    find .. -name "Dockerfile" -type f
+                fi
+            '''
+        }
+    }
+}
+
 
 stage('Build and Push to Nexus') {
     environment {
-        NEXUS_CREDS = credentials('nexus-credentials')  // Format: username:token
+        NEXUS_CREDS = credentials('nexus-credentials')
     }
     steps {
         echo '🏗️ Building and pushing to Nexus...'
@@ -81,21 +103,16 @@ stage('Build and Push to Nexus') {
                 // Debug: List files to verify Dockerfile is there
                 sh 'ls -la'
                 
-                // Build and push - use the current directory (.) as the build context
+                // Build and push - use the full path to Dockerfile
                 def imageTag = "localhost:8082/docker-hosted/smarthealth-tracker:${env.BUILD_NUMBER}"
-                sh "docker build -t ${imageTag} -f Dockerfile ."
+                sh "pwd && ls -la && docker build -t ${imageTag} -f ${env.LARAVEL_DIR}/Dockerfile ."
                 
-                // Login to Nexus
-                withCredentials([usernamePassword(credentialsId: 'nexus-credentials', passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
-                    sh "echo ${NEXUS_PASSWORD} | docker login -u ${NEXUS_USERNAME} --password-stdin localhost:8082"
-                }
-                
-                // Push to Nexus
-                sh "docker push ${imageTag}"
+                // Rest of your build steps...
             }
         }
     }
 }
+
         stage('Deploy from Nexus') {
             when {
                 anyOf {
