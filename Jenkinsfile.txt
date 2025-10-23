@@ -8,6 +8,11 @@ pipeline {
     environment {
         LARAVEL_DIR = 'smarthealth-tracker-laravel'
         DOCKER_IMAGE = "krizisiwar/smarthealth-tracker:${BUILD_NUMBER}"
+
+        NEXUS_URL = 'localhost:8082'  // ou votre URL Nexus
+        NEXUS_REPO = 'docker-hosted'  // ou le nom de votre dépôt
+        NEXUS_IMAGE = "${NEXUS_URL}/${NEXUS_REPO}/smarthealth-tracker"
+  
     }
 
     stages {
