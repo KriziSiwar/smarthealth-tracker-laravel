@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -14,29 +15,47 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '🚀 Cloning repository...'
-                checkout([$class: 'GitSCM', 
-                    branches: [[name: 'siwar_new_integration']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
-                        credentialsId: 'GithubToken-laravel'
-                    ]]
-                ])
+                git branch: 'siwar_new_integration',
+                    url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
+                    credentialsId: 'GithubToken-laravel'
             }
         }
 
-        stage('Build and Test') {
+        stage('Setup Laravel') {
             steps {
+                echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
-                    // Setup Laravel
                     sh 'cp .env.example .env'
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                     sh 'php artisan key:generate'
-                    
-                    // Setup Frontend
+                    sh 'php artisan breeze:install blade --pest --ssr --dark'
+                }
+            }
+        }
+
+        stage('Setup Frontend') {
+            steps {
+                echo '🔄 Setting up frontend...'
+                dir(env.LARAVEL_DIR) {
                     sh 'npm install --no-audit --prefer-offline'
-                    sh 'export VITE_DISABLE_OPEN_BROWSER=true && npm run build'
-                    
-                    // Run Tests
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                echo '🛠️ Building frontend assets...'
+                dir(env.LARAVEL_DIR) {
+                    sh 'export VITE_DISABLE_OPEN_BROWSER=true'
+                    sh 'npm run build'
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                echo '🧪 Running tests...'
+                dir(env.LARAVEL_DIR) {
                     sh 'touch database/database.sqlite'
                     sh 'chmod 666 database/database.sqlite'
                     sh 'php artisan migrate:fresh --force'
@@ -45,53 +64,43 @@ pipeline {
             }
         }
 
-        stage('Build and Push Docker Image') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    // Install Docker if not already installed
-                    sh '''
-                        if ! command -v docker &> /dev/null; then
-                            echo "Installing Docker..."
-                            curl -fsSL https://get.docker.com -o get-docker.sh
-                            sh get-docker.sh
-                            sudo usermod -aG docker $USER
-                        fi
-                        
-                        # Build Docker image
-                        docker build -t ${DOCKER_IMAGE} .
-                        
-                        # Login to Docker Hub
-                        withCredentials([usernamePassword(
-                            credentialsId: 'docker-hub-credentials',
-                            usernameVariable: 'DOCKER_USERNAME',
-                            passwordVariable: 'DOCKER_PASSWORD'
-                        )]) {
-                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                            docker push ${DOCKER_IMAGE}
-                        }
-                    '''
+                    echo '🐳 Building Docker image...'
+                    sh "docker build -t ${env.DOCKER_IMAGE} ."
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            when {
+                branch 'siwar_new_integration'
+            }
+            steps {
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-hub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+                        sh """
+                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                            docker push ${env.DOCKER_IMAGE}
+                        """
+                    }
                 }
             }
         }
 
         stage('Deploy') {
+            when {
+                branch 'siwar_new_integration'
+            }
             steps {
-                script {
-                    sh '''
-                        # Install Docker Compose if not already installed
-                        if ! command -v docker-compose &> /dev/null; then
-                            echo "Installing Docker Compose..."
-                            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                            sudo chmod +x /usr/local/bin/docker-compose
-                        fi
-                        
-                        # Stop and remove existing containers
-                        docker-compose down || true
-                        
-                        # Start the application
-                        docker-compose up -d
-                    '''
-                }
+                echo '🚀 Deploying with Docker Compose...'
+                sh 'docker-compose down || true'
+                sh 'docker-compose up -d'
             }
         }
     }
@@ -99,8 +108,8 @@ pipeline {
     post {
         always {
             echo '🧹 Cleaning up...'
-            sh 'docker container prune -f || true'
-            sh 'docker image prune -f || true'
+            sh 'docker container prune -f'
+            sh 'docker image prune -f'
         }
     }
 }
