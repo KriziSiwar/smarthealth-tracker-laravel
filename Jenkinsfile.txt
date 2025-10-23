@@ -9,9 +9,7 @@ pipeline {
         LARAVEL_DIR = 'smarthealth-tracker-laravel'
         DOCKER_IMAGE = "krizisiwar/smarthealth-tracker:${BUILD_NUMBER}"
 
-        NEXUS_URL = 'localhost:8082'
-        NEXUS_REPO = 'docker-hosted'
-        NEXUS_IMAGE = "${NEXUS_URL}/${NEXUS_REPO}/smarthealth-tracker"
+    
   
     }
 
@@ -92,81 +90,6 @@ stage('Debug File Structure') {
 }
 
 
- stage('Build and Push to Nexus') {
-    environment {
-        NEXUS_CREDS = credentials('nexus-credentials')
-    }
-    steps {
-        echo '🏗️ Building and pushing to Nexus...'
-        script {
-            // Change to the repository root directory
-            dir('.') {
-                // Build the Docker image from the root
-                def imageTag = "localhost:8082/smarthealth-tracker:${env.BUILD_NUMBER}"
-                sh "docker build -t ${imageTag} -f Dockerfile ."
-                
-                // Login and push
-                withCredentials([usernamePassword(
-                    credentialsId: 'nexus-credentials',
-                    usernameVariable: 'NEXUS_USER',
-                    passwordVariable: 'NEXUS_PASS'
-                )]) {
-                    sh '''
-                        echo "Testing Nexus connection..."
-                        if ! curl -s -I http://localhost:8082/service/rest/v1/status; then
-                            echo "ERROR: Cannot connect to Nexus"
-                            exit 1
-                        fi
-                        
-                        echo "Logging into Nexus Docker registry..."
-                        echo "$NEXUS_PASS" | docker login -u "$NEXUS_USER" --password-stdin localhost:8082
-                        
-                        echo "Pushing image..."
-                        docker push "localhost:8082/smarthealth-tracker:${BUILD_NUMBER}"
-                    '''
-                }
-            }
-        }
-    }
-}
-
-        stage('Deploy from Nexus') {
-            when {
-                anyOf {
-                    branch 'siwar_new_integration'
-                    expression { 
-                        def currentBranch = env.BRANCH_NAME ?: sh(
-                            script: 'git rev-parse --abbrev-ref HEAD', 
-                            returnStdout: true
-                        ).trim()
-                        return currentBranch == 'siwar_new_integration' || 
-                               currentBranch == 'origin/siwar_new_integration'
-                    }
-                }
-            }
-            environment {
-                NEXUS_CREDS = credentials('nexus-token')
-            }
-            steps {
-                script {
-                    def imageToDeploy = "${NEXUS_IMAGE}:${env.BUILD_NUMBER}"
-                    
-                    // Arrêter et supprimer le conteneur existant
-                    sh 'docker stop smarthealth-app || true'
-                    sh 'docker rm smarthealth-app || true'
-                    
-                    // Pull et run la nouvelle image
-                    sh """
-                        docker pull ${imageToDeploy}
-                        docker run -d \
-                            --name smarthealth-app \
-                            -p 80:80 \
-                            --restart unless-stopped \
-                            ${imageToDeploy}
-                    """
-                }
-            }
-        }
 
 
     stage('SonarQube Analysis') {
