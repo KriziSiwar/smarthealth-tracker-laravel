@@ -75,11 +75,10 @@ pipeline {
 
         stage('Push to Docker Hub') {
             when {
-                // Add any condition you need, or remove the when block to always run
+                branch 'siwar_new_integration'
                 anyOf {
                     branch 'siwar_new_integration'
-                    branch 'main'
-                    branch 'master'
+                  
                 }
             }
             steps {
