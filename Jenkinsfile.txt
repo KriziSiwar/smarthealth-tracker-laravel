@@ -94,7 +94,7 @@ stage('Debug File Structure') {
 
 stage('Build and Push to Nexus') {
     environment {
-        NEXUS_CREDS = credentials('nexus-credentials')  // Format: username:token
+        NEXUS_CREDS = credentials('nexus-credentials')
     }
     steps {
         echo '🏗️ Building and pushing to Nexus...'
@@ -102,7 +102,7 @@ stage('Build and Push to Nexus') {
             // Debug: List files to verify Dockerfile is there
             sh 'ls -la'
             
-            // Build and push - use the root directory
+            // Build and push - use the root directory as context
             def imageTag = "localhost:8082/docker-hosted/smarthealth-tracker:${env.BUILD_NUMBER}"
             sh "docker build -t ${imageTag} -f Dockerfile ."
             
