@@ -19,7 +19,10 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl gd zip
+    supervisor \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl gd zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -30,19 +33,29 @@ WORKDIR /var/www
 # Copy application files
 COPY smarthealth-tracker-laravel/ /var/www
 
-# Copy built assets from node_build stage
-COPY --from=node_build /app/public/build /var/www/public/build
-
 # Install PHP dependencies (no dev dependencies)
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+# Copy built assets from node_build stage
+COPY --from=node_build /app/public/build /var/www/public/build
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 /var/www/storage \
     && chmod -R 775 /var/www/bootstrap/cache
 
-# Copy .env file (handled in production)
+# Copy .env file
 COPY smarthealth-tracker-laravel/.env.example /var/www/.env
+
+# Install Prometheus PHP Client
+RUN composer require promphp/prometheus_client_php
+
+# Create storage for metrics
+RUN mkdir -p /var/www/storage/framework/cache/metrics
+
+# Copy supervisor configuration
+RUN mkdir -p /var/log/supervisor
+COPY docker/supervisor/conf.d/ /etc/supervisor/conf.d/
 
 # Generate application key
 RUN php artisan key:generate
@@ -50,5 +63,5 @@ RUN php artisan key:generate
 # Expose port 9000 for PHP-FPM
 EXPOSE 9000
 
-# Start PHP-FPM
-CMD ["php-fpm"]
+# Start services
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
