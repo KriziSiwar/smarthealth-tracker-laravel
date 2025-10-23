@@ -1,0 +1,54 @@
+# Dependencies
+/node_modules
+/vendor
+
+# Environment files
+.env
+.env.example
+.env.testing
+
+# Storage
+/storage/*
+!/storage/framework
+!/storage/logs
+/storage/framework/*
+!/storage/framework/views
+/storage/framework/views/*.php
+/storage/framework/cache/*
+!/storage/framework/cache/data
+/storage/framework/sessions/*
+/storage/framework/testing
+/storage/logs/*.log
+
+# Build files
+/public/build
+/public/hot
+/public/storage
+/public/.htaccess
+
+# IDE
+.idea
+.vscode
+*.sublime-*
+*.code-workspace
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Docker
+.docker
+docker-compose.override.yml
+docker-compose.yml
+Dockerfile
+
+# Local development
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+
+# Misc
+.DS_Store
+Thumbs.db
