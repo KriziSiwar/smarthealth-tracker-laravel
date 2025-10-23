@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: siwarkrizii/smarthealth-tracker:latest
+    build: .
     restart: always
     environment:
       - APP_ENV=production
