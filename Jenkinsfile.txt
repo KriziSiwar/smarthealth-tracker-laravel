@@ -94,21 +94,25 @@ stage('Debug File Structure') {
 
 stage('Build and Push to Nexus') {
     environment {
-        NEXUS_CREDS = credentials('nexus-credentials')
+        NEXUS_CREDS = credentials('nexus-credentials')  // Format: username:token
     }
     steps {
         echo '🏗️ Building and pushing to Nexus...'
-        dir(env.LARAVEL_DIR) {
-            script {
-                // Debug: List files to verify Dockerfile is there
-                sh 'ls -la'
-                
-                // Build and push - use the full path to Dockerfile
-                def imageTag = "localhost:8082/docker-hosted/smarthealth-tracker:${env.BUILD_NUMBER}"
-                sh "pwd && ls -la && docker build -t ${imageTag} -f ${env.LARAVEL_DIR}/Dockerfile ."
-                
-                // Rest of your build steps...
+        script {
+            // Debug: List files to verify Dockerfile is there
+            sh 'ls -la'
+            
+            // Build and push - use the root directory
+            def imageTag = "localhost:8082/docker-hosted/smarthealth-tracker:${env.BUILD_NUMBER}"
+            sh "docker build -t ${imageTag} -f Dockerfile ."
+            
+            // Login to Nexus
+            withCredentials([usernamePassword(credentialsId: 'nexus-credentials', passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
+                sh "echo ${NEXUS_PASSWORD} | docker login -u ${NEXUS_USERNAME} --password-stdin localhost:8082"
             }
+            
+            // Push to Nexus
+            sh "docker push ${imageTag}"
         }
     }
 }
