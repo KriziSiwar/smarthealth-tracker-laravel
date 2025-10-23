@@ -64,6 +64,82 @@ pipeline {
         }
 
 
+
+stage('Build and Push to Nexus') {
+            environment {
+                NEXUS_CREDS = credentials('nexus-token')  // Format: username:token
+            }
+            steps {
+                echo '🏗️ Building and pushing to Nexus...'
+                dir(env.LARAVEL_DIR) {
+                    script {
+                        def imageTag = "${NEXUS_IMAGE}:${env.BUILD_NUMBER}"
+                        def latestTag = "${NEXUS_IMAGE}:latest"
+                        
+                        // Build l'image
+                        sh "docker build -t ${imageTag} ."
+                        
+                        // Tagger pour latest
+                        sh "docker tag ${imageTag} ${latestTag}"
+                        
+                        // Login à Nexus
+                        sh """
+                            echo ${NEXUS_CREDS_PSW} | \
+                            docker login ${NEXUS_URL} \
+                                -u ${NEXUS_CREDS_USR} \
+                                --password-stdin
+                        """
+                        
+                        // Push des images
+                        sh "docker push ${imageTag}"
+                        sh "docker push ${latestTag}"
+                        
+                        // Nettoyage
+                        sh "docker rmi ${imageTag} ${latestTag} || true"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy from Nexus') {
+            when {
+                anyOf {
+                    branch 'siwar_new_integration'
+                    expression { 
+                        def currentBranch = env.BRANCH_NAME ?: sh(
+                            script: 'git rev-parse --abbrev-ref HEAD', 
+                            returnStdout: true
+                        ).trim()
+                        return currentBranch == 'siwar_new_integration' || 
+                               currentBranch == 'origin/siwar_new_integration'
+                    }
+                }
+            }
+            environment {
+                NEXUS_CREDS = credentials('nexus-token')
+            }
+            steps {
+                script {
+                    def imageToDeploy = "${NEXUS_IMAGE}:${env.BUILD_NUMBER}"
+                    
+                    // Arrêter et supprimer le conteneur existant
+                    sh 'docker stop smarthealth-app || true'
+                    sh 'docker rm smarthealth-app || true'
+                    
+                    // Pull et run la nouvelle image
+                    sh """
+                        docker pull ${imageToDeploy}
+                        docker run -d \
+                            --name smarthealth-app \
+                            -p 80:80 \
+                            --restart unless-stopped \
+                            ${imageToDeploy}
+                    """
+                }
+            }
+        }
+
+
     stage('SonarQube Analysis') {
     environment {
         SONAR_AUTH_TOKEN = credentials('sonarToken')
@@ -103,6 +179,11 @@ stage('Test SonarQube Connection') {
         '''
     }
 }
+
+
+
+
+
 
 
         stage('Build Docker Image') {
