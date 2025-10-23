@@ -75,7 +75,12 @@ pipeline {
 
         stage('Push to Docker Hub') {
             when {
-                branch 'siwar_new_integration'
+                // Add any condition you need, or remove the when block to always run
+                anyOf {
+                    branch 'siwar_new_integration'
+                    branch 'main'
+                    branch 'master'
+                }
             }
             steps {
                 script {
@@ -85,16 +90,8 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
                         sh """
-                            # Login to Docker Hub
                             echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                            
-                            # Tag the existing image
-                            docker tag smarthealth-tracker-laravel_app ${DOCKER_IMAGE}
-                            
-                            # Push the image
-                            docker push ${DOCKER_IMAGE}
-                            
-                            # Logout
+                            docker push ${env.DOCKER_IMAGE}
                             docker logout
                         """
                     }
@@ -104,25 +101,26 @@ pipeline {
 
         stage('Deploy') {
             when {
-                branch 'siwar_new_integration'
+                anyOf {
+                    branch 'siwar_new_integration'
+                    branch 'main'
+                    branch 'master'
+                }
             }
             steps {
                 script {
                     sh """
-                        # Pull the latest changes
-                        cd ${env.WORKSPACE}
-                        git pull origin siwar_new_integration
+                        # Stop and remove existing containers
+                        docker-compose down || true
                         
-                        # Rebuild and restart the containers
-                        docker-compose down
-                        docker-compose build --no-cache
+                        # Pull the latest image
+                        docker pull ${env.DOCKER_IMAGE}
+                        
+                        # Start the application
                         docker-compose up -d
                         
-                        # Run migrations and clear cache
-                        docker-compose exec app php artisan migrate --force
-                        docker-compose exec app php artisan config:cache
-                        docker-compose exec app php artisan route:cache
-                        docker-compose exec app php artisan view:cache
+                        # Run migrations
+                        docker-compose exec -T app php artisan migrate --force
                     """
                 }
             }
