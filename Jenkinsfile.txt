@@ -97,30 +97,32 @@ stage('Debug File Structure') {
         NEXUS_CREDS = credentials('nexus-credentials')
     }
     steps {
+        echo '🏗️ Building and pushing to Nexus...'
         script {
-            // Build the Docker image
+            // First, build the Docker image
             def imageTag = "localhost:8082/smarthealth-tracker:${env.BUILD_NUMBER}"
+            sh "docker build -t ${imageTag} -f ../Dockerfile ."
             
-            sh """
-                echo "Building Docker image..."
-                docker build -t ${imageTag} -f Dockerfile .
-                
-                echo "Testing Nexus connection..."
-                if ! curl -s -I http://localhost:8082/v2/; then
-                    echo "ERROR: Cannot access Docker V2 API at http://localhost:8082/v2/"
-                    echo "Please verify:"
-                    echo "1. Nexus Docker repository is properly configured"
-                    echo "2. Docker daemon is configured with insecure-registries"
-                    echo "3. Nexus is running and accessible"
-                    exit 1
-                fi
-                
-                echo "Logging into Nexus Docker registry..."
-                echo $NEXUS_PASS | docker login -u $NEXUS_USER --password-stdin localhost:8082
-                
-                echo "Pushing image..."
-                docker push ${imageTag}
-            """
+            // Then login and push
+            withCredentials([usernamePassword(
+                credentialsId: 'nexus-credentials',
+                usernameVariable: 'NEXUS_USER',
+                passwordVariable: 'NEXUS_PASS'
+            )]) {
+                sh '''
+                    echo "Testing Nexus connection..."
+                    if ! curl -s -I http://localhost:8082/service/rest/v1/status; then
+                        echo "ERROR: Cannot connect to Nexus"
+                        exit 1
+                    fi
+                    
+                    echo "Logging into Nexus Docker registry..."
+                    echo "$NEXUS_PASS" | docker login -u "$NEXUS_USER" --password-stdin localhost:8082
+                    
+                    echo "Pushing image..."
+                    docker push "localhost:8082/smarthealth-tracker:${BUILD_NUMBER}"
+                '''
+            }
         }
     }
 }
