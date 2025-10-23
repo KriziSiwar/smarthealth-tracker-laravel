@@ -1,17 +1,9 @@
 # Build stage for Node.js
 FROM node:20 AS node_build
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
-
-# Copy the rest of the application
 COPY . .
-
-# Build assets
 RUN npm run build
 
 # Production stage
@@ -49,7 +41,7 @@ RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 /var/www/storage \
     && chmod -R 775 /var/www/bootstrap/cache
 
-# Copy .env file (you might want to handle this differently in production)
+# Copy .env file (handled in production)
 COPY .env.example .env
 
 # Generate application key
