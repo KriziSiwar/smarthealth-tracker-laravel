@@ -66,26 +66,37 @@ pipeline {
 
     stage('SonarQube Analysis') {
     environment {
-        // Make sure this matches your Jenkins credential ID
         SONAR_AUTH_TOKEN = credentials('sonarToken')
     }
     steps {
         echo '🔍 Running SonarQube analysis...'
         dir(env.LARAVEL_DIR) {
             sh 'npm install -g sonar-scanner'
-            sh """
+            // Using single quotes and passing token via environment variable
+            sh '''
                 sonar-scanner \
                 -Dsonar.projectKey=smarthealth-tracker \
                 -Dsonar.sources=. \
                 -Dsonar.host.url=http://localhost:9000 \
-                -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                -Dsonar.sourceEncoding=UTF-8 \
-                -Dsonar.php.coverage.reportPaths=coverage.xml
-            """
+                -Dsonar.login="$SONAR_AUTH_TOKEN" \
+                -Dsonar.sourceEncoding=UTF-8
+            '''
         }
     }
 }
 
+stage('Test SonarQube Connection') {
+    environment {
+        SONAR_AUTH_TOKEN = credentials('sonarToken')
+    }
+    steps {
+        sh '''
+            echo "Testing SonarQube connection..."
+            curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
+            -u $SONAR_AUTH_TOKEN: http://localhost:9000/api/system/health
+        '''
+    }
+}
 
 
         stage('Build Docker Image') {
