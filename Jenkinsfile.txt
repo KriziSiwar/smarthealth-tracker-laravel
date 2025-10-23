@@ -20,14 +20,14 @@ pipeline {
             }
         }
 
-        stage('Setup Laravel') {
+       stage('Setup Laravel') {
             steps {
                 echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
                     sh 'cp .env.example .env'
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                     sh 'php artisan key:generate'
-                    sh 'php artisan breeze:install blade --pest --ssr --dark'
+                    sh 'php artisan breeze:install blade --ssr --dark --no-pest'  // Ligne modifiée ici
                 }
             }
         }
