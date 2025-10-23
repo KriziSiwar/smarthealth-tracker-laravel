@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -73,62 +72,71 @@ pipeline {
             }
         }
 
-      stage('Debug Branch Info') {
-    steps {
-        script {
-            echo "Current branch: ${env.BRANCH_NAME}"
-            echo "Git branch: ${sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()}"
+        stage('Debug Branch Info') {
+            steps {
+                script {
+                    echo "Current branch: ${env.BRANCH_NAME}"
+                    echo "Git branch: ${sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()}"
+                }
+            }
         }
-    }
-}
 
-stage('Push to Docker Hub') {
-    when {
-        // Try both the direct branch check and a more permissive check
-        anyOf {
-            branch 'siwar_new_integration'
-            expression { 
-                def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                echo "Current branch in expression: ${currentBranch}"
-                return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+        stage('Push to Docker Hub') {
+            when {
+                anyOf {
+                    branch 'siwar_new_integration'
+                    expression { 
+                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                        echo "Current branch in expression: ${currentBranch}"
+                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+                    }
+                }
+            }
+            steps {
+                script {
+                    echo "🚢 Pushing Docker image to Docker Hub..."
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-hub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+                        sh """
+                            echo "Logging into Docker Hub..."
+                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                            echo "Pushing image ${DOCKER_IMAGE}..."
+                            docker push ${DOCKER_IMAGE}
+                            docker logout
+                        """
+                    }
+                }
             }
         }
-    }
-    steps {
-        script {
-            echo "🚢 Pushing Docker image to Docker Hub..."
-            withCredentials([usernamePassword(
-                credentialsId: 'docker-hub-credentials',
-                usernameVariable: 'DOCKER_USERNAME',
-                passwordVariable: 'DOCKER_PASSWORD'
-            )]) {
-                sh """
-                    echo "Logging into Docker Hub..."
-                    echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                    echo "Pushing image ${DOCKER_IMAGE}..."
-                    docker push ${DOCKER_IMAGE}
-                    docker logout
-                """
-            }
-        }
-    }
-}
 
-stage('Deploy') {
-    when {
-        anyOf {
-            branch 'siwar_new_integration'
-            expression { 
-                def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+        stage('Deploy') {
+            when {
+                anyOf {
+                    branch 'siwar_new_integration'
+                    expression { 
+                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
+                    }
+                }
+            }
+            steps {
+                script {
+                    echo "🚀 Deploying application..."
+                    // Your deployment commands here
+                    sh 'echo "Deployment would happen here"'
+                }
             }
         }
     }
-    steps {
-        script {
-            echo "🚀 Deploying application..."
-            // Your deployment commands here
-            sh 'echo "Deployment would happen here"'
+
+    post {
+        always {
+            echo '🧹 Cleaning up...'
+            sh 'docker container prune -f || true'
+            sh 'docker image prune -f || true'
         }
     }
 }
