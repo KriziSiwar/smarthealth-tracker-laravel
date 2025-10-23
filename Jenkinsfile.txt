@@ -64,13 +64,17 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            steps {
-                script {
-                    echo '🐳 Building Docker image...'
-                    sh "docker build -t ${env.DOCKER_IMAGE} ."
-                }
-            }
+    steps {
+        script {
+            echo '🐳 Building Docker image...'
+            sh """
+                docker build -t ${DOCKER_IMAGE} .
+                # Add additional tag for latest
+                docker tag ${DOCKER_IMAGE} siwarkrizii/smarthealth-tracker:latest
+            """
         }
+    }
+}
 
         stage('Debug Branch Info') {
             steps {
@@ -81,36 +85,41 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
-            when {
-                anyOf {
-                    branch 'siwar_new_integration'
-                    expression { 
-                        def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                        echo "Current branch in expression: ${currentBranch}"
-                        return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
-                    }
-                }
-            }
-            steps {
-                script {
-                    echo "🚢 Pushing Docker image to Docker Hub..."
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-credentials',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )]) {
-                        sh """
-                            echo "Logging into Docker Hub..."
-                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                            echo "Pushing image ${DOCKER_IMAGE}..."
-                            docker push ${DOCKER_IMAGE}
-                            docker logout
-                        """
-                    }
-                }
+       stage('Push to Docker Hub') {
+    when {
+        anyOf {
+            branch 'siwar_new_integration'
+            expression { 
+                def currentBranch = env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                return currentBranch == 'siwar_new_integration' || currentBranch == 'origin/siwar_new_integration'
             }
         }
+    }
+    steps {
+        script {
+            echo "🚢 Pushing Docker image to Docker Hub..."
+            withCredentials([usernamePassword(
+                credentialsId: 'docker-hub-credentials',
+                usernameVariable: 'DOCKER_USERNAME',
+                passwordVariable: 'DOCKER_PASSWORD'
+            )]) {
+                // First login to Docker Hub
+                sh """
+                    echo "Logging into Docker Hub..."
+                    echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                    echo "Pushing image ${DOCKER_IMAGE}..."
+                    # Add retry logic for the push
+                    timeout(time: 5, unit: 'MINUTES') {
+                        retry(3) {
+                            docker push ${DOCKER_IMAGE}
+                        }
+                    }
+                    docker logout
+                """
+            }
+        }
+    }
+}
 
         stage('Deploy') {
             when {
