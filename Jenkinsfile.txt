@@ -14,47 +14,29 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '🚀 Cloning repository...'
-                git branch: 'siwar_new_integration',
-                    url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
-                    credentialsId: 'GithubToken-laravel'
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: 'siwar_new_integration']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/KriziSiwar/smarthealth-tracker-laravel.git',
+                        credentialsId: 'GithubToken-laravel'
+                    ]]
+                ])
             }
         }
 
-        stage('Setup Laravel') {
+        stage('Build and Test') {
             steps {
-                echo '🔧 Setting up Laravel...'
                 dir(env.LARAVEL_DIR) {
+                    // Setup Laravel
                     sh 'cp .env.example .env'
                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                     sh 'php artisan key:generate'
-                    sh 'php artisan breeze:install blade --pest --ssr --dark'
-                }
-            }
-        }
-
-        stage('Setup Frontend') {
-            steps {
-                echo '🔄 Setting up frontend...'
-                dir(env.LARAVEL_DIR) {
+                    
+                    // Setup Frontend
                     sh 'npm install --no-audit --prefer-offline'
-                }
-            }
-        }
-
-        stage('Build Frontend') {
-            steps {
-                echo '🛠️ Building frontend assets...'
-                dir(env.LARAVEL_DIR) {
-                    sh 'export VITE_DISABLE_OPEN_BROWSER=true'
-                    sh 'npm run build'
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                echo '🧪 Running tests...'
-                dir(env.LARAVEL_DIR) {
+                    sh 'export VITE_DISABLE_OPEN_BROWSER=true && npm run build'
+                    
+                    // Run Tests
                     sh 'touch database/database.sqlite'
                     sh 'chmod 666 database/database.sqlite'
                     sh 'php artisan migrate:fresh --force'
@@ -63,28 +45,26 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo '🐳 Building Docker image...'
-                    sh "docker build -t ${env.DOCKER_IMAGE} ."
+        stage('Build and Push Docker Image') {
+            agent {
+                docker {
+                    image 'docker:20.10.16-dind'
+                    args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
-        }
-
-        stage('Push to Docker Hub') {
-            when {
-                branch 'siwar_new_integration'
-            }
             steps {
                 script {
+                    // Build Docker image
+                    sh "docker build -t ${env.DOCKER_IMAGE} ."
+                    
+                    // Push to Docker Hub
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-hub-credentials',
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
                         sh """
-                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                            docker login -u ${DOCKER_USERNAME} --password-stdin <<< ${DOCKER_PASSWORD}
                             docker push ${env.DOCKER_IMAGE}
                         """
                     }
@@ -93,13 +73,17 @@ pipeline {
         }
 
         stage('Deploy') {
-            when {
-                branch 'siwar_new_integration'
+            agent {
+                docker {
+                    image 'docker/compose:1.29.2'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker'
+                }
             }
             steps {
-                echo '🚀 Deploying with Docker Compose...'
-                sh 'docker-compose down || true'
-                sh 'docker-compose up -d'
+                script {
+                    sh 'docker-compose down || true'
+                    sh 'docker-compose up -d'
+                }
             }
         }
     }
@@ -107,8 +91,8 @@ pipeline {
     post {
         always {
             echo '🧹 Cleaning up...'
-            sh 'docker container prune -f'
-            sh 'docker image prune -f'
+            sh 'docker container prune -f || true'
+            sh 'docker image prune -f || true'
         }
     }
 }
