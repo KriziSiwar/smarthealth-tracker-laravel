@@ -88,7 +88,11 @@ pipeline {
             steps {
                 script {
                     echo '🐳 Building Docker image...'
-                    sh "docker build -t ${env.DOCKER_IMAGE} ."
+                    dir(env.LARAVEL_DIR) {
+                        // S'assurer que le fichier .dockerignore est présent
+                        sh 'cp ../.dockerignore . || true'
+                        sh "docker build -t ${env.DOCKER_IMAGE} ."
+                    }
                 }
             }
         }
