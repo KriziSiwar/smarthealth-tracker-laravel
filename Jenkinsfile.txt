@@ -46,43 +46,51 @@ pipeline {
         }
 
         stage('Build and Push Docker Image') {
-            agent {
-                docker {
-                    image 'docker:20.10.16-dind'
-                    args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
             steps {
                 script {
-                    // Build Docker image
-                    sh "docker build -t ${env.DOCKER_IMAGE} ."
-                    
-                    // Push to Docker Hub
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-credentials',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )]) {
-                        sh """
-                            docker login -u ${DOCKER_USERNAME} --password-stdin <<< ${DOCKER_PASSWORD}
-                            docker push ${env.DOCKER_IMAGE}
-                        """
-                    }
+                    // Install Docker if not already installed
+                    sh '''
+                        if ! command -v docker &> /dev/null; then
+                            echo "Installing Docker..."
+                            curl -fsSL https://get.docker.com -o get-docker.sh
+                            sh get-docker.sh
+                            sudo usermod -aG docker $USER
+                        fi
+                        
+                        # Build Docker image
+                        docker build -t ${DOCKER_IMAGE} .
+                        
+                        # Login to Docker Hub
+                        withCredentials([usernamePassword(
+                            credentialsId: 'docker-hub-credentials',
+                            usernameVariable: 'DOCKER_USERNAME',
+                            passwordVariable: 'DOCKER_PASSWORD'
+                        )]) {
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            docker push ${DOCKER_IMAGE}
+                        }
+                    '''
                 }
             }
         }
 
         stage('Deploy') {
-            agent {
-                docker {
-                    image 'docker/compose:1.29.2'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker'
-                }
-            }
             steps {
                 script {
-                    sh 'docker-compose down || true'
-                    sh 'docker-compose up -d'
+                    sh '''
+                        # Install Docker Compose if not already installed
+                        if ! command -v docker-compose &> /dev/null; then
+                            echo "Installing Docker Compose..."
+                            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                            sudo chmod +x /usr/local/bin/docker-compose
+                        fi
+                        
+                        # Stop and remove existing containers
+                        docker-compose down || true
+                        
+                        # Start the application
+                        docker-compose up -d
+                    '''
                 }
             }
         }
