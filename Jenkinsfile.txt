@@ -71,41 +71,31 @@ pipeline {
 
 
 stage('Build and Push to Nexus') {
-            environment {
-                NEXUS_CREDS = credentials('nexus-token')  // Format: username:token
-            }
-            steps {
-                echo '🏗️ Building and pushing to Nexus...'
-                dir(env.LARAVEL_DIR) {
-                    script {
-                        def imageTag = "${NEXUS_IMAGE}:${env.BUILD_NUMBER}"
-                        def latestTag = "${NEXUS_IMAGE}:latest"
-                        
-                        // Build l'image
-                        sh "docker build -t ${imageTag} ."
-                        
-                        // Tagger pour latest
-                        sh "docker tag ${imageTag} ${latestTag}"
-                        
-                        // Login à Nexus
-                        sh """
-                            echo ${NEXUS_CREDS_PSW} | \
-                            docker login ${NEXUS_URL} \
-                                -u ${NEXUS_CREDS_USR} \
-                                --password-stdin
-                        """
-                        
-                        // Push des images
-                        sh "docker push ${imageTag}"
-                        sh "docker push ${latestTag}"
-                        
-                        // Nettoyage
-                        sh "docker rmi ${imageTag} ${latestTag} || true"
-                    }
+    environment {
+        NEXUS_CREDS = credentials('nexus-credentials')  // Format: username:token
+    }
+    steps {
+        echo '🏗️ Building and pushing to Nexus...'
+        dir(env.LARAVEL_DIR) {
+            script {
+                // Debug: List files to verify Dockerfile is there
+                sh 'ls -la'
+                
+                // Build and push
+                def imageTag = "localhost:8082/docker-hosted/smarthealth-tracker:${env.BUILD_NUMBER}"
+                sh "docker build -t ${imageTag} ."
+                
+                // Login to Nexus
+                withCredentials([usernamePassword(credentialsId: 'nexus-credentials', passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
+                    sh "echo ${NEXUS_PASSWORD} | docker login -u ${NEXUS_USERNAME} --password-stdin localhost:8082"
                 }
+                
+                // Push to Nexus
+                sh "docker push ${imageTag}"
             }
         }
-
+    }
+}
         stage('Deploy from Nexus') {
             when {
                 anyOf {
