@@ -64,27 +64,24 @@ pipeline {
         }
 
 
-        stage('SonarQube Analysis') {
-            environment {
-                SONAR_TOKEN = credentials('sonar-token') // Ton token SonarQube enregistré dans Jenkins
-            }
-            steps {
-                echo '🔍 Running SonarQube analysis...'
-                dir(env.LARAVEL_DIR) {
-                    // Installer sonar-scanner si nécessaire
-                    sh 'npm install -g sonar-scanner'
-        
-                    // Lancer l'analyse
-                    sh """
-                        sonar-scanner \
-                        -Dsonar.projectKey=smarthealth-tracker \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=https://YOUR_SONARQUBE_SERVER_URL \
-                        -Dsonar.login=$SONAR_TOKEN
-                    """
-                }
-            }
+       stage('SonarQube Analysis') {
+    environment {
+        SONAR_TOKEN = credentials('sonar-token')
+    }
+    steps {
+        echo '🔍 Running SonarQube analysis...'
+        dir(env.LARAVEL_DIR) {
+            sh 'npm install -g sonar-scanner'
+            sh """
+                sonar-scanner \
+                -Dsonar.projectKey=smarthealth-tracker \
+                -Dsonar.sources=. \
+                -Dsonar.host.url=https://your-actual-sonarqube-server.com \
+                -Dsonar.login=${SONAR_TOKEN}
+            """
         }
+    }
+}
 
 
 
