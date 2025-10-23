@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         LARAVEL_DIR = 'smarthealth-tracker-laravel'
-        DOCKER_IMAGE = "siwarkrizii/smarthealth-tracker:${BUILD_NUMBER}"
+        DOCKER_IMAGE = "krizisiwar/smarthealth-tracker:${BUILD_NUMBER}"
     }
 
     stages {
