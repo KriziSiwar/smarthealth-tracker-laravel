@@ -81,7 +81,7 @@ pipeline {
                 sonar-scanner \
                 -Dsonar.projectKey=smarthealth-tracker \
                 -Dsonar.sources=. \
-                -Dsonar.host.url=https://your-actual-sonarqube-server.com \
+                -Dsonar.host.url=http://localhost:9000/projects/create \
                 -Dsonar.login=$SONAR_AUTH_TOKEN
             '''
         }
