@@ -72,14 +72,20 @@ pipeline {
         echo '🔍 Running SonarQube analysis...'
         dir(env.LARAVEL_DIR) {
             sh 'npm install -g sonar-scanner'
-            // Using single quotes and passing token via environment variable
             sh '''
-                sonar-scanner \
-                -Dsonar.projectKey=smarthealth-tracker \
-                -Dsonar.sources=. \
-                -Dsonar.host.url=http://localhost:9000 \
-                -Dsonar.login="$SONAR_AUTH_TOKEN" \
-                -Dsonar.sourceEncoding=UTF-8
+                # Create sonar-project.properties
+                cat > sonar-project.properties << 'EOL'
+                sonar.projectKey=smarthealth-tracker
+                sonar.projectName=SmartHealth Tracker
+                sonar.projectVersion=1.0
+                sonar.sources=.
+                sonar.sourceEncoding=UTF-8
+                sonar.excludes=**/node_modules/**,**/*.spec.js
+                sonar.php.coverage.reportPaths=coverage.xml
+                EOL
+                
+                # Run sonar-scanner with token
+                sonar-scanner -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_AUTH_TOKEN
             '''
         }
     }
